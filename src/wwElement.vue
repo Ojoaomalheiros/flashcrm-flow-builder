@@ -397,6 +397,7 @@ const loadVueFlowFromCDN = async () => {
   const loadScript = (src, id) => {
     return new Promise((resolve, reject) => {
       if (doc.getElementById(id)) {
+        console.log(`[FLOW-BUILDER] Script ${id} already exists, skipping`)
         resolve()
         return
       }
@@ -404,8 +405,14 @@ const loadVueFlowFromCDN = async () => {
       const script = doc.createElement('script')
       script.id = id
       script.src = src
-      script.onload = resolve
-      script.onerror = () => reject(new Error('Failed to load: ' + src))
+      script.onload = () => {
+        console.log(`[FLOW-BUILDER] Script ${id} loaded successfully`)
+        resolve()
+      }
+      script.onerror = (e) => {
+        console.error(`[FLOW-BUILDER] Script ${id} failed to load:`, e)
+        reject(new Error('Failed to load: ' + src))
+      }
       doc.head.appendChild(script)
     })
   }
@@ -452,7 +459,17 @@ const loadVueFlowFromCDN = async () => {
     await new Promise(resolve => setTimeout(resolve, 100))
 
     console.log('[FLOW-BUILDER] After VueFlow load - win.VueFlow:', win.VueFlow)
-    console.log('[FLOW-BUILDER] All window keys with Vue:', Object.keys(win).filter(k => k.toLowerCase().includes('vue')))
+    const vueKeys = Object.keys(win).filter(k => k.toLowerCase().includes('vue') || k.toLowerCase().includes('flow'))
+    console.log('[FLOW-BUILDER] All window keys with vue/flow:', vueKeys)
+    vueKeys.forEach(k => console.log(`[FLOW-BUILDER] win.${k}:`, win[k]))
+
+    // Try alternative global names that Vue Flow might use
+    const possibleNames = ['VueFlow', 'vueFlow', 'VueFlowCore', 'vueFlowCore', '@vue-flow/core']
+    possibleNames.forEach(name => {
+      if (win[name]) {
+        console.log(`[FLOW-BUILDER] Found under win.${name}:`, win[name])
+      }
+    })
 
     if (win.VueFlow) {
       VueFlowComponent.value = win.VueFlow.VueFlow
