@@ -471,14 +471,21 @@ const loadVueFlowFromCDN = async () => {
       }
     })
 
-    if (win.VueFlow) {
-      VueFlowComponent.value = win.VueFlow.VueFlow
-      window.__vueFlowHandle = win.VueFlow.Handle
-      window.__vueFlowPosition = win.VueFlow.Position
-      vueFlowInstance.value = win.VueFlow
+    // VueFlow exports to window.VueFlowCore (not VueFlow)
+    const vfCore = win.VueFlowCore || win.VueFlow
+    console.log('[FLOW-BUILDER] VueFlowCore module:', vfCore)
+
+    if (vfCore) {
+      // The module exports VueFlow as a named export
+      VueFlowComponent.value = vfCore.VueFlow
+      window.__vueFlowHandle = vfCore.Handle
+      window.__vueFlowPosition = vfCore.Position
+      vueFlowInstance.value = vfCore
       console.log('[FLOW-BUILDER] VueFlow component assigned:', VueFlowComponent.value)
+      console.log('[FLOW-BUILDER] Handle:', vfCore.Handle)
+      console.log('[FLOW-BUILDER] Position:', vfCore.Position)
     } else {
-      throw new Error('VueFlow not found after loading script')
+      throw new Error('VueFlowCore not found after loading script')
     }
 
     // Load additional components
@@ -525,8 +532,9 @@ const MiniMap = computed(() => MiniMapComponent.value)
 // useVueFlow wrapper - will be called after libraries are loaded
 const getVueFlowComposable = () => {
   const win = wwLib.getFrontWindow()
-  if (win?.VueFlow?.useVueFlow) {
-    return win.VueFlow.useVueFlow()
+  const vfCore = win?.VueFlowCore || win?.VueFlow
+  if (vfCore?.useVueFlow) {
+    return vfCore.useVueFlow()
   }
   if (vueFlowInstance.value?.useVueFlow) {
     return vueFlowInstance.value.useVueFlow()
@@ -537,8 +545,9 @@ const getVueFlowComposable = () => {
 // ConnectionMode
 const getConnectionMode = () => {
   const win = wwLib.getFrontWindow()
-  if (win?.VueFlow?.ConnectionMode) {
-    return win.VueFlow.ConnectionMode
+  const vfCore = win?.VueFlowCore || win?.VueFlow
+  if (vfCore?.ConnectionMode) {
+    return vfCore.ConnectionMode
   }
   if (vueFlowInstance.value?.ConnectionMode) {
     return vueFlowInstance.value.ConnectionMode
@@ -2228,8 +2237,9 @@ onMounted(async () => {
 
     // Initialize useVueFlow composable after libraries are loaded
     const win = wwLib.getFrontWindow()
-    if (win?.VueFlow?.useVueFlow) {
-      vueFlowComposable = win.VueFlow.useVueFlow()
+    const vfCore = win?.VueFlowCore || win?.VueFlow
+    if (vfCore?.useVueFlow) {
+      vueFlowComposable = vfCore.useVueFlow()
       console.log('[FLOW-BUILDER] useVueFlow initialized:', vueFlowComposable)
     } else if (vueFlowInstance.value?.useVueFlow) {
       vueFlowComposable = vueFlowInstance.value.useVueFlow()
