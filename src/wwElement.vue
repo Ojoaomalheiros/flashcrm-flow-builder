@@ -1158,19 +1158,27 @@ const applyAutoLayout = (shouldFitView = false) => {
     nextTick(() => {
       // Find the trigger node to center on it
       const triggerNode = nodes.value.find(n => n.type === 'trigger')
+      console.log('[FLOW-BUILDER] applyAutoLayout - triggerNode:', triggerNode?.position)
+
       if (triggerNode) {
-        // Get canvas container dimensions
-        const container = document.querySelector('.vue-flow')
-        const containerWidth = container?.clientWidth || 1200
+        // Get canvas container dimensions using WeWeb's document
+        const doc = wwLib.getFrontDocument()
+        const container = doc?.querySelector('.vue-flow') || doc?.querySelector('.flow-canvas')
+        const containerWidth = container?.clientWidth || window.innerWidth || 1200
+        const containerHeight = container?.clientHeight || window.innerHeight || 800
 
-        // Calculate viewport position to center trigger at top
+        console.log('[FLOW-BUILDER] Container dimensions:', containerWidth, 'x', containerHeight)
+
+        // Calculate viewport position to center trigger horizontally
         const triggerWidth = getNodeWidth(triggerNode)
-        const viewportX = -(triggerNode.position.x + triggerWidth / 2) + containerWidth / 2
-        const viewportY = -triggerNode.position.y + 50 // 50px from top
+        const viewportX = (containerWidth / 2) - (triggerNode.position.x + triggerWidth / 2)
+        const viewportY = 80 - triggerNode.position.y // 80px from top
 
+        console.log('[FLOW-BUILDER] Setting viewport:', { x: viewportX, y: viewportY, zoom: 1 })
         setViewport({ x: viewportX, y: viewportY, zoom: 1 }, { duration: 300 })
       } else {
         // Fallback to fitView if no trigger
+        console.log('[FLOW-BUILDER] No trigger found, using fitView')
         fitView({ duration: 300, padding: 0.2, maxZoom: 1 })
       }
     })
