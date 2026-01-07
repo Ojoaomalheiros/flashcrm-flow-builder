@@ -1483,18 +1483,6 @@ const handlePaneReady = () => {
   // Pass true to fit view only on initialization
   nextTick(() => {
     applyAutoLayout(true)
-
-    // Auto-open trigger config panel on load
-    setTimeout(() => {
-      const triggerNode = nodes.value.find(n => n.type === 'trigger')
-      console.log('[FLOW-BUILDER] Auto-selecting trigger node:', triggerNode)
-      if (triggerNode) {
-        currentSelectedNode.value = triggerNode
-        setSelectedNodes([triggerNode])
-        setSelectedNode(triggerNode)
-        console.log('[FLOW-BUILDER] Trigger node selected, currentSelectedNode:', currentSelectedNode.value)
-      }
-    }, 500) // Wait for viewport animation to complete
   })
 }
 
@@ -2302,6 +2290,18 @@ onMounted(async () => {
     edges.value = processInitialEdges()
     updateInternalVariables()
     runValidation()
+
+    // Auto-select trigger node after initialization
+    setTimeout(() => {
+      const triggerNode = nodes.value.find(n => n.type === 'trigger')
+      console.log('[FLOW-BUILDER] Auto-selecting trigger after init:', triggerNode)
+      if (triggerNode) {
+        currentSelectedNode.value = triggerNode
+        setSelectedNodes([triggerNode])
+        setSelectedNode(triggerNode)
+        console.log('[FLOW-BUILDER] Trigger node selected!')
+      }
+    }, 800)
   }
 
   // Note: applyAutoLayout is called in handlePaneReady when Vue Flow is fully initialized
