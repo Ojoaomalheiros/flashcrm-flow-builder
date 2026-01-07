@@ -2220,11 +2220,14 @@ const loadFluxoFromDatabase = async (fluxoId) => {
     // Update internal variables
     updateInternalVariables()
 
-    // Apply layout after setting nodes
-    nextTick(() => {
-      applyAutoLayout(true)
+    // Apply layout after setting nodes - wait for VueFlow to be ready
+    setTimeout(() => {
+      if (vueFlowReady.value) {
+        console.log('[FLOW-BUILDER] Applying auto layout after loading flow')
+        applyAutoLayout(true)
+      }
       runValidation()
-    })
+    }, 200)
 
     // Emit success event
     emit('trigger-event', {
@@ -2322,6 +2325,14 @@ onMounted(async () => {
       edges.value = processInitialEdges()
       updateInternalVariables()
       runValidation()
+
+      // Apply layout after nodes are initialized
+      setTimeout(() => {
+        if (vueFlowReady.value) {
+          console.log('[FLOW-BUILDER] Applying auto layout after fallback init')
+          applyAutoLayout(true)
+        }
+      }, 200)
     }
   } else {
     // No ID in URL, initialize with default nodes (new flow)
@@ -2331,21 +2342,27 @@ onMounted(async () => {
     updateInternalVariables()
     runValidation()
 
-    // Auto-select trigger node after initialization
+    // Apply layout and center view AFTER nodes are initialized
+    // Wait for VueFlow to be ready and nodes to be rendered
     setTimeout(() => {
-      const triggerNode = nodes.value.find(n => n.type === 'trigger')
-      console.log('[FLOW-BUILDER] Auto-selecting trigger after init:', triggerNode)
-      if (triggerNode) {
-        currentSelectedNode.value = triggerNode
-        setSelectedNodes([triggerNode])
-        setSelectedNode(triggerNode)
-        console.log('[FLOW-BUILDER] Trigger node selected!')
+      if (vueFlowReady.value) {
+        console.log('[FLOW-BUILDER] Applying auto layout after node initialization')
+        applyAutoLayout(true)
       }
-    }, 800)
-  }
 
-  // Note: applyAutoLayout is called in handlePaneReady when Vue Flow is fully initialized
-  // This ensures fitView works correctly with maxZoom constraint
+      // Auto-select trigger node after layout is applied
+      setTimeout(() => {
+        const triggerNode = nodes.value.find(n => n.type === 'trigger')
+        console.log('[FLOW-BUILDER] Auto-selecting trigger after init:', triggerNode)
+        if (triggerNode) {
+          currentSelectedNode.value = triggerNode
+          setSelectedNodes([triggerNode])
+          setSelectedNode(triggerNode)
+          console.log('[FLOW-BUILDER] Trigger node selected!')
+        }
+      }, 400)
+    }, 200)
+  }
 })
 
 onBeforeUnmount(() => {
