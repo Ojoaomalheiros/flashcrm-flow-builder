@@ -435,16 +435,20 @@ const loadVueFlowFromCDN = async () => {
     loadCSS('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/style.css', 'vue-flow-minimap-css')
     console.log('[FLOW-BUILDER] CSS files loaded')
 
-    // CRITICAL: Always load Vue globally for IIFE builds
+    // Check current Vue status
     console.log('[FLOW-BUILDER] Current win.Vue:', win.Vue)
+    console.log('[FLOW-BUILDER] Current win.Vue type:', typeof win.Vue)
 
-    // Always load Vue 3 from CDN (IIFE builds require window.Vue)
-    await loadScript('https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js', 'vue-global')
-    console.log('[FLOW-BUILDER] After Vue load - win.Vue:', win.Vue)
-
+    // DO NOT load Vue from CDN - use WeWeb's Vue to avoid conflicts
+    // The Vue Flow IIFE should use the existing Vue from WeWeb
     if (!win.Vue) {
-      throw new Error('Vue failed to load from CDN')
+      console.log('[FLOW-BUILDER] No Vue found, loading from CDN as fallback')
+      await loadScript('https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js', 'vue-global')
+    } else {
+      console.log('[FLOW-BUILDER] Using existing Vue from WeWeb')
     }
+
+    console.log('[FLOW-BUILDER] Final win.Vue:', win.Vue)
 
     // Load dagre
     await loadScript('https://unpkg.com/@dagrejs/dagre@1.1.4/dist/dagre.min.js', 'dagre-lib')
