@@ -426,20 +426,17 @@ const loadVueFlowFromCDN = async () => {
     loadCSS('https://unpkg.com/@vue-flow/core@1.33.5/dist/theme-default.css', 'vue-flow-theme-css')
     loadCSS('https://unpkg.com/@vue-flow/controls@1.1.3/dist/style.css', 'vue-flow-controls-css')
     loadCSS('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/style.css', 'vue-flow-minimap-css')
+    console.log('[FLOW-BUILDER] CSS files loaded')
 
-    // CRITICAL: Expose Vue globally for IIFE builds
-    // WeWeb uses Vue internally, we need to find and expose it
+    // CRITICAL: Always load Vue globally for IIFE builds
+    console.log('[FLOW-BUILDER] Current win.Vue:', win.Vue)
+
+    // Always load Vue 3 from CDN (IIFE builds require window.Vue)
+    await loadScript('https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js', 'vue-global')
+    console.log('[FLOW-BUILDER] After Vue load - win.Vue:', win.Vue)
+
     if (!win.Vue) {
-      // Try to get Vue from the WeWeb context
-      const vueInstance = wwLib.getFrontWindow()?.__vue_app__?.config?.globalProperties
-      if (vueInstance) {
-        // Vue 3 app found, but we need the Vue constructor
-        console.log('[FLOW-BUILDER] Found Vue app instance')
-      }
-
-      // Load Vue 3 from CDN as fallback (will be used by IIFE builds)
-      await loadScript('https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js', 'vue-global')
-      console.log('[FLOW-BUILDER] Vue loaded from CDN:', win.Vue ? 'success' : 'failed')
+      throw new Error('Vue failed to load from CDN')
     }
 
     // Load dagre
@@ -448,8 +445,14 @@ const loadVueFlowFromCDN = async () => {
     console.log('[FLOW-BUILDER] Dagre loaded:', dagreLib ? 'success' : 'failed')
 
     // Load Vue Flow core
+    console.log('[FLOW-BUILDER] Loading Vue Flow core...')
     await loadScript('https://unpkg.com/@vue-flow/core@1.33.5/dist/vue-flow-core.iife.js', 'vue-flow-core')
-    console.log('[FLOW-BUILDER] VueFlow global:', win.VueFlow)
+
+    // Wait a bit for the script to initialize
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    console.log('[FLOW-BUILDER] After VueFlow load - win.VueFlow:', win.VueFlow)
+    console.log('[FLOW-BUILDER] All window keys with Vue:', Object.keys(win).filter(k => k.toLowerCase().includes('vue')))
 
     if (win.VueFlow) {
       VueFlowComponent.value = win.VueFlow.VueFlow
