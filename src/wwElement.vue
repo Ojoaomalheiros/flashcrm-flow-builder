@@ -1476,6 +1476,7 @@ const runValidation = () => {
 
 const handlePaneReady = () => {
   vueFlowReady.value = true
+  console.log('[FLOW-BUILDER] handlePaneReady called, vueFlowReady:', vueFlowReady.value)
 
   // Apply layout and fit view when pane is ready
   // This ensures Vue Flow is fully initialized before we fitView
@@ -1486,12 +1487,14 @@ const handlePaneReady = () => {
     // Auto-open trigger config panel on load
     setTimeout(() => {
       const triggerNode = nodes.value.find(n => n.type === 'trigger')
+      console.log('[FLOW-BUILDER] Auto-selecting trigger node:', triggerNode)
       if (triggerNode) {
         currentSelectedNode.value = triggerNode
         setSelectedNodes([triggerNode])
         setSelectedNode(triggerNode)
+        console.log('[FLOW-BUILDER] Trigger node selected, currentSelectedNode:', currentSelectedNode.value)
       }
-    }, 350) // Wait for viewport animation to complete
+    }, 500) // Wait for viewport animation to complete
   })
 }
 
