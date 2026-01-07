@@ -33,7 +33,10 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Handle, Position } from '@vue-flow/core'
+
+// Get Handle and Position from parent component (via window)
+const Handle = window.__vueFlowHandle
+const Position = window.__vueFlowPosition
 
 const props = defineProps({
   id: { type: String, required: true },

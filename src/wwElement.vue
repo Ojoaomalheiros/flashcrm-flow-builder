@@ -335,10 +335,17 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { VueFlow, Panel, ConnectionMode, useVueFlow } from '@vue-flow/core'
-import { Background } from '@vue-flow/background'
-import { Controls } from '@vue-flow/controls'
-import { MiniMap } from '@vue-flow/minimap'
+
+// Vue Flow components from npm plugin
+const { VueFlow, Panel, ConnectionMode, useVueFlow, Handle, Position } = wwLib.npm.VueFlowCore
+const { Background } = wwLib.npm.VueFlowBackground
+const { Controls } = wwLib.npm.VueFlowControls
+const { MiniMap } = wwLib.npm.VueFlowMinimap
+const dagre = wwLib.npm.dagre
+
+// Export Handle and Position for child components
+window.__vueFlowHandle = Handle
+window.__vueFlowPosition = Position
 
 // Import custom nodes
 import TriggerNode from './components/nodes/TriggerNode.vue'
@@ -355,15 +362,6 @@ import {
   generateFluxoPayload,
   validateFlowForExport
 } from './utils/flowConverter.js'
-
-// Import dagre for automatic layout
-import dagre from '@dagrejs/dagre'
-
-// Import styles
-import '@vue-flow/core/dist/style.css'
-import '@vue-flow/core/dist/theme-default.css'
-import '@vue-flow/controls/dist/style.css'
-import '@vue-flow/minimap/dist/style.css'
 
 const props = defineProps({
   content: { type: Object, default: () => ({}) },
@@ -2026,7 +2024,34 @@ const getQueryParam = (param) => {
   }
 }
 
+// Inject Vue Flow CSS dynamically from CDN
+const injectVueFlowCSS = () => {
+  const doc = wwLib.getFrontDocument()
+  if (!doc) return
+
+  const cssUrls = [
+    'https://unpkg.com/@vue-flow/core@1.33.5/dist/style.css',
+    'https://unpkg.com/@vue-flow/core@1.33.5/dist/theme-default.css',
+    'https://unpkg.com/@vue-flow/controls@1.1.3/dist/style.css',
+    'https://unpkg.com/@vue-flow/minimap@1.4.0/dist/style.css'
+  ]
+
+  cssUrls.forEach((url, index) => {
+    const linkId = `vue-flow-css-${index}`
+    if (!doc.getElementById(linkId)) {
+      const link = doc.createElement('link')
+      link.id = linkId
+      link.rel = 'stylesheet'
+      link.href = url
+      doc.head.appendChild(link)
+    }
+  })
+}
+
 onMounted(async () => {
+  // Inject Vue Flow CSS
+  injectVueFlowCSS()
+
   // Add keyboard event listener to prevent node deletion
   document.addEventListener('keydown', handleKeyDown, true)
 

@@ -13,7 +13,9 @@
 </template>
 
 <script setup>
-import { Handle, Position } from '@vue-flow/core'
+// Get Handle and Position from parent component (via window)
+const Handle = window.__vueFlowHandle
+const Position = window.__vueFlowPosition
 
 defineProps({
   id: { type: String, required: true },
