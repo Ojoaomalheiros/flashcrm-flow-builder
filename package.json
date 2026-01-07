@@ -1,0 +1,19 @@
+{
+  "name": "flow-builder",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "weweb build name=flow-builder type=wwobject",
+    "serve": "weweb serve"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^1.1.4",
+    "@vue-flow/background": "1.3.0",
+    "@vue-flow/controls": "1.1.1",
+    "@vue-flow/core": "1.33.5",
+    "@vue-flow/minimap": "1.4.0",
+    "@vue-flow/node-toolbar": "1.1.0"
+  },
+  "devDependencies": {
+    "@weweb/cli": "latest"
+  }
+}
