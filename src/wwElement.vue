@@ -71,6 +71,7 @@
       <component
         v-if="vueFlowLoaded && VueFlow"
         :is="VueFlow"
+        :id="vueFlowId"
         v-model:nodes="nodes"
         v-model:edges="edges"
         :node-types="nodeTypes"
@@ -575,6 +576,9 @@ const emit = defineEmits(['trigger-event'])
 // ============================================
 // VUE FLOW INSTANCE
 // ============================================
+
+// Unique ID for this VueFlow instance
+const vueFlowId = `flow-builder-${props.uid || 'default'}`
 
 // VueFlow composable - initialized after libraries load
 let vueFlowComposable = { fitView: () => {}, setViewport: () => {}, getViewport: () => ({}) }
@@ -1155,33 +1159,50 @@ const applyAutoLayout = (shouldFitView = false) => {
 
   // Only fit view on initialization, not when adding/removing nodes
   if (shouldFitView) {
-    nextTick(() => {
+    // Use a small delay to ensure VueFlow is fully rendered
+    setTimeout(() => {
       // Find the trigger node to center on it
       const triggerNode = nodes.value.find(n => n.type === 'trigger')
-      console.log('[FLOW-BUILDER] applyAutoLayout - triggerNode:', triggerNode?.position)
+      console.log('[FLOW-BUILDER] applyAutoLayout - triggerNode position:', triggerNode?.position)
 
       if (triggerNode) {
         // Get canvas container dimensions using WeWeb's document
         const doc = wwLib.getFrontDocument()
-        const container = doc?.querySelector('.vue-flow') || doc?.querySelector('.flow-canvas')
-        const containerWidth = container?.clientWidth || window.innerWidth || 1200
-        const containerHeight = container?.clientHeight || window.innerHeight || 800
+        // Try multiple selectors to find the VueFlow container
+        const container = doc?.querySelector('.flow-builder-container') ||
+                          doc?.querySelector('.vue-flow') ||
+                          doc?.querySelector('.flow-canvas')
+        const containerWidth = container?.clientWidth || 800
+        const containerHeight = container?.clientHeight || 600
 
-        console.log('[FLOW-BUILDER] Container dimensions:', containerWidth, 'x', containerHeight)
+        console.log('[FLOW-BUILDER] Container found:', !!container, 'dimensions:', containerWidth, 'x', containerHeight)
 
         // Calculate viewport position to center trigger horizontally
         const triggerWidth = getNodeWidth(triggerNode)
-        const viewportX = (containerWidth / 2) - (triggerNode.position.x + triggerWidth / 2)
-        const viewportY = 80 - triggerNode.position.y // 80px from top
+        const triggerCenterX = triggerNode.position.x + triggerWidth / 2
 
+        // Viewport X: offset needed to move triggerCenterX to containerWidth/2
+        const viewportX = (containerWidth / 2) - triggerCenterX
+        // Viewport Y: 80px from top, accounting for trigger position
+        const viewportY = 80 - triggerNode.position.y
+
+        console.log('[FLOW-BUILDER] Trigger center X:', triggerCenterX, 'triggerWidth:', triggerWidth)
         console.log('[FLOW-BUILDER] Setting viewport:', { x: viewportX, y: viewportY, zoom: 1 })
+
+        // Try setViewport first
         setViewport({ x: viewportX, y: viewportY, zoom: 1 }, { duration: 300 })
+
+        // Verify it was applied after a short delay
+        setTimeout(() => {
+          const currentViewport = getViewport()
+          console.log('[FLOW-BUILDER] Current viewport after setViewport:', currentViewport)
+        }, 400)
       } else {
         // Fallback to fitView if no trigger
         console.log('[FLOW-BUILDER] No trigger found, using fitView')
         fitView({ duration: 300, padding: 0.2, maxZoom: 1 })
       }
-    })
+    }, 100)
   }
 }
 
@@ -1485,6 +1506,15 @@ const runValidation = () => {
 const handlePaneReady = () => {
   vueFlowReady.value = true
   console.log('[FLOW-BUILDER] handlePaneReady called, vueFlowReady:', vueFlowReady.value)
+
+  // Re-initialize useVueFlow composable now that the instance is ready
+  // This ensures setViewport and other methods work correctly
+  const win = wwLib.getFrontWindow()
+  const vfCore = win?.VueFlowCore || win?.VueFlow
+  if (vfCore?.useVueFlow) {
+    vueFlowComposable = vfCore.useVueFlow({ id: vueFlowId })
+    console.log('[FLOW-BUILDER] useVueFlow re-initialized on pane ready:', vueFlowComposable)
+  }
 
   // Apply layout and fit view when pane is ready
   // This ensures Vue Flow is fully initialized before we fitView
@@ -2239,13 +2269,15 @@ onMounted(async () => {
     await loadVueFlowFromCDN()
 
     // Initialize useVueFlow composable after libraries are loaded
+    // NOTE: We'll re-initialize this in handlePaneReady when the instance is actually ready
     const win = wwLib.getFrontWindow()
     const vfCore = win?.VueFlowCore || win?.VueFlow
     if (vfCore?.useVueFlow) {
-      vueFlowComposable = vfCore.useVueFlow()
-      console.log('[FLOW-BUILDER] useVueFlow initialized:', vueFlowComposable)
+      // Initialize with the ID to connect to the specific instance
+      vueFlowComposable = vfCore.useVueFlow({ id: vueFlowId })
+      console.log('[FLOW-BUILDER] useVueFlow initialized with id:', vueFlowId, vueFlowComposable)
     } else if (vueFlowInstance.value?.useVueFlow) {
-      vueFlowComposable = vueFlowInstance.value.useVueFlow()
+      vueFlowComposable = vueFlowInstance.value.useVueFlow({ id: vueFlowId })
       console.log('[FLOW-BUILDER] useVueFlow initialized from instance:', vueFlowComposable)
     }
   } catch (error) {
