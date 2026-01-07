@@ -384,30 +384,13 @@ const vueFlowInstance = shallowRef(null)
 // Store dagre reference
 let dagreLib = null
 
-// Load Vue Flow libraries from CDN
+// Load Vue Flow libraries dynamically using ESM imports
 const loadVueFlowFromCDN = async () => {
   const doc = wwLib.getFrontDocument()
   const win = wwLib.getFrontWindow()
 
   if (!doc || !win) {
     throw new Error('Could not access document or window')
-  }
-
-  // Helper to load a script
-  const loadScript = (src) => {
-    return new Promise((resolve, reject) => {
-      // Check if already loaded
-      if (doc.querySelector(`script[src="${src}"]`)) {
-        resolve()
-        return
-      }
-
-      const script = doc.createElement('script')
-      script.src = src
-      script.onload = resolve
-      script.onerror = () => reject(new Error(`Failed to load ${src}`))
-      doc.head.appendChild(script)
-    })
   }
 
   // Helper to load CSS
@@ -427,41 +410,36 @@ const loadVueFlowFromCDN = async () => {
     loadCSS('https://unpkg.com/@vue-flow/controls@1.1.3/dist/style.css', 'vue-flow-controls-css')
     loadCSS('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/style.css', 'vue-flow-minimap-css')
 
-    // Load dagre (CommonJS compatible build)
-    await loadScript('https://unpkg.com/@dagrejs/dagre@1.1.4/dist/dagre.min.js')
-    dagreLib = win.dagre
+    // Use dynamic ESM imports via esm.sh (resolves Vue peer dependency automatically)
+    // esm.sh bundles dependencies, including Vue, matching the host's Vue version
+    const [vueFlowCore, vueFlowBackground, vueFlowControls, vueFlowMinimap, dagreModule] = await Promise.all([
+      import('https://esm.sh/@vue-flow/core@1.33.5?external=vue'),
+      import('https://esm.sh/@vue-flow/background@1.3.2?external=vue'),
+      import('https://esm.sh/@vue-flow/controls@1.1.3?external=vue'),
+      import('https://esm.sh/@vue-flow/minimap@1.4.0?external=vue'),
+      import('https://esm.sh/@dagrejs/dagre@1.1.4')
+    ])
 
-    // Load Vue Flow core (ESM build via esm.sh which handles Vue peer dependency)
-    await loadScript('https://unpkg.com/@vue-flow/core@1.33.5/dist/vue-flow-core.iife.js')
+    // Assign components
+    VueFlowComponent.value = vueFlowCore.VueFlow
+    BackgroundComponent.value = vueFlowBackground.Background
+    ControlsComponent.value = vueFlowControls.Controls
+    MiniMapComponent.value = vueFlowMinimap.MiniMap
+    dagreLib = dagreModule.default || dagreModule
 
-    // Check if VueFlow is available globally
-    if (win.VueFlow) {
-      const vf = win.VueFlow
-      VueFlowComponent.value = vf.VueFlow
-      window.__vueFlowHandle = vf.Handle
-      window.__vueFlowPosition = vf.Position
+    // Export Handle and Position for child components
+    window.__vueFlowHandle = vueFlowCore.Handle
+    window.__vueFlowPosition = vueFlowCore.Position
+    window.__vueFlowCore = vueFlowCore
 
-      // Store for useVueFlow
-      vueFlowInstance.value = vf
-    }
-
-    // Load additional components
-    await loadScript('https://unpkg.com/@vue-flow/background@1.3.2/dist/vue-flow-background.iife.js')
-    if (win.VueFlowBackground) {
-      BackgroundComponent.value = win.VueFlowBackground.Background
-    }
-
-    await loadScript('https://unpkg.com/@vue-flow/controls@1.1.3/dist/vue-flow-controls.iife.js')
-    if (win.VueFlowControls) {
-      ControlsComponent.value = win.VueFlowControls.Controls
-    }
-
-    await loadScript('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/vue-flow-minimap.iife.js')
-    if (win.VueFlowMinimap) {
-      MiniMapComponent.value = win.VueFlowMinimap.MiniMap
-    }
+    // Store full module for useVueFlow
+    vueFlowInstance.value = vueFlowCore
 
     console.log('[FLOW-BUILDER] Vue Flow loaded successfully from CDN')
+    console.log('[FLOW-BUILDER] VueFlow component:', VueFlowComponent.value)
+    console.log('[FLOW-BUILDER] Handle:', window.__vueFlowHandle)
+    console.log('[FLOW-BUILDER] Position:', window.__vueFlowPosition)
+
     vueFlowLoaded.value = true
 
   } catch (error) {
@@ -479,17 +457,18 @@ const MiniMap = computed(() => MiniMapComponent.value)
 
 // useVueFlow wrapper - will be called after libraries are loaded
 const getVueFlowComposable = () => {
-  const win = wwLib.getFrontWindow()
-  if (win?.VueFlow?.useVueFlow) {
-    return win.VueFlow.useVueFlow()
+  if (vueFlowInstance.value?.useVueFlow) {
+    return vueFlowInstance.value.useVueFlow()
   }
   return { fitView: () => {}, setViewport: () => {}, getViewport: () => ({}) }
 }
 
 // ConnectionMode
 const getConnectionMode = () => {
-  const win = wwLib.getFrontWindow()
-  return win?.VueFlow?.ConnectionMode || { Loose: 'loose', Strict: 'strict' }
+  if (vueFlowInstance.value?.ConnectionMode) {
+    return vueFlowInstance.value.ConnectionMode
+  }
+  return { Loose: 'loose', Strict: 'strict' }
 }
 
 // Dagre getter
@@ -2173,9 +2152,9 @@ onMounted(async () => {
     await loadVueFlowFromCDN()
 
     // Initialize useVueFlow composable after libraries are loaded
-    const win = wwLib.getFrontWindow()
-    if (win?.VueFlow?.useVueFlow) {
-      vueFlowComposable = win.VueFlow.useVueFlow()
+    if (vueFlowInstance.value?.useVueFlow) {
+      vueFlowComposable = vueFlowInstance.value.useVueFlow()
+      console.log('[FLOW-BUILDER] useVueFlow initialized:', vueFlowComposable)
     }
   } catch (error) {
     console.error('[FLOW-BUILDER] Failed to initialize Vue Flow:', error)
