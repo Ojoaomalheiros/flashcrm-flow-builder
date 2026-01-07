@@ -56,7 +56,21 @@
 
     <!-- Main Flow Container -->
     <div class="flow-builder-container" :style="containerStyle" :class="{ 'read-only': isReadOnly }">
-      <VueFlow
+      <!-- Loading State -->
+      <div v-if="!vueFlowLoaded" class="flow-loading-state">
+        <div v-if="vueFlowError" class="flow-error">
+          <span>Erro ao carregar Vue Flow: {{ vueFlowError }}</span>
+        </div>
+        <div v-else class="flow-loading">
+          <div class="loading-spinner"></div>
+          <span>Carregando editor de fluxo...</span>
+        </div>
+      </div>
+
+      <!-- Vue Flow Component -->
+      <component
+        v-if="vueFlowLoaded && VueFlow"
+        :is="VueFlow"
         v-model:nodes="nodes"
         v-model:edges="edges"
         :node-types="nodeTypes"
@@ -163,28 +177,32 @@
         </template>
 
         <!-- Background -->
-        <Background
+        <component
+          v-if="Background"
+          :is="Background"
           :pattern-color="backgroundPatternColor"
           :gap="backgroundGap"
           :size="backgroundSize"
         />
 
         <!-- Controls -->
-        <Controls
-          v-if="showControls"
+        <component
+          v-if="showControls && Controls"
+          :is="Controls"
           :show-zoom="showZoomControls"
           :show-fit-view="showFitView"
           :show-interactive="showInteractive"
         />
 
         <!-- Minimap -->
-        <MiniMap
-          v-if="showMinimap"
+        <component
+          v-if="showMinimap && MiniMap"
+          :is="MiniMap"
           :pannable="minimapPannable"
           :zoomable="minimapZoomable"
           :node-color="getNodeColor"
         />
-      </VueFlow>
+      </component>
     </div>
 
     <!-- Add Node Sidebar (Inside Canvas) -->
@@ -334,18 +352,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-
-// Vue Flow components from npm plugin
-const { VueFlow, Panel, ConnectionMode, useVueFlow, Handle, Position } = wwLib.npm.VueFlowCore
-const { Background } = wwLib.npm.VueFlowBackground
-const { Controls } = wwLib.npm.VueFlowControls
-const { MiniMap } = wwLib.npm.VueFlowMinimap
-const dagre = wwLib.npm.dagre
-
-// Export Handle and Position for child components
-window.__vueFlowHandle = Handle
-window.__vueFlowPosition = Position
+import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 // Import custom nodes
 import TriggerNode from './components/nodes/TriggerNode.vue'
@@ -363,6 +370,131 @@ import {
   validateFlowForExport
 } from './utils/flowConverter.js'
 
+// Vue Flow components - will be loaded dynamically
+const vueFlowLoaded = ref(false)
+const vueFlowError = ref(null)
+
+// Reactive references for Vue Flow components
+const VueFlowComponent = shallowRef(null)
+const BackgroundComponent = shallowRef(null)
+const ControlsComponent = shallowRef(null)
+const MiniMapComponent = shallowRef(null)
+const vueFlowInstance = shallowRef(null)
+
+// Store dagre reference
+let dagreLib = null
+
+// Load Vue Flow libraries from CDN
+const loadVueFlowFromCDN = async () => {
+  const doc = wwLib.getFrontDocument()
+  const win = wwLib.getFrontWindow()
+
+  if (!doc || !win) {
+    throw new Error('Could not access document or window')
+  }
+
+  // Helper to load a script
+  const loadScript = (src) => {
+    return new Promise((resolve, reject) => {
+      // Check if already loaded
+      if (doc.querySelector(`script[src="${src}"]`)) {
+        resolve()
+        return
+      }
+
+      const script = doc.createElement('script')
+      script.src = src
+      script.onload = resolve
+      script.onerror = () => reject(new Error(`Failed to load ${src}`))
+      doc.head.appendChild(script)
+    })
+  }
+
+  // Helper to load CSS
+  const loadCSS = (href, id) => {
+    if (doc.getElementById(id)) return
+    const link = doc.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    link.href = href
+    doc.head.appendChild(link)
+  }
+
+  try {
+    // Load CSS files
+    loadCSS('https://unpkg.com/@vue-flow/core@1.33.5/dist/style.css', 'vue-flow-core-css')
+    loadCSS('https://unpkg.com/@vue-flow/core@1.33.5/dist/theme-default.css', 'vue-flow-theme-css')
+    loadCSS('https://unpkg.com/@vue-flow/controls@1.1.3/dist/style.css', 'vue-flow-controls-css')
+    loadCSS('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/style.css', 'vue-flow-minimap-css')
+
+    // Load dagre (CommonJS compatible build)
+    await loadScript('https://unpkg.com/@dagrejs/dagre@1.1.4/dist/dagre.min.js')
+    dagreLib = win.dagre
+
+    // Load Vue Flow core (ESM build via esm.sh which handles Vue peer dependency)
+    await loadScript('https://unpkg.com/@vue-flow/core@1.33.5/dist/vue-flow-core.iife.js')
+
+    // Check if VueFlow is available globally
+    if (win.VueFlow) {
+      const vf = win.VueFlow
+      VueFlowComponent.value = vf.VueFlow
+      window.__vueFlowHandle = vf.Handle
+      window.__vueFlowPosition = vf.Position
+
+      // Store for useVueFlow
+      vueFlowInstance.value = vf
+    }
+
+    // Load additional components
+    await loadScript('https://unpkg.com/@vue-flow/background@1.3.2/dist/vue-flow-background.iife.js')
+    if (win.VueFlowBackground) {
+      BackgroundComponent.value = win.VueFlowBackground.Background
+    }
+
+    await loadScript('https://unpkg.com/@vue-flow/controls@1.1.3/dist/vue-flow-controls.iife.js')
+    if (win.VueFlowControls) {
+      ControlsComponent.value = win.VueFlowControls.Controls
+    }
+
+    await loadScript('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/vue-flow-minimap.iife.js')
+    if (win.VueFlowMinimap) {
+      MiniMapComponent.value = win.VueFlowMinimap.MiniMap
+    }
+
+    console.log('[FLOW-BUILDER] Vue Flow loaded successfully from CDN')
+    vueFlowLoaded.value = true
+
+  } catch (error) {
+    console.error('[FLOW-BUILDER] Failed to load Vue Flow:', error)
+    vueFlowError.value = error.message
+    throw error
+  }
+}
+
+// Computed aliases for template
+const VueFlow = computed(() => VueFlowComponent.value)
+const Background = computed(() => BackgroundComponent.value)
+const Controls = computed(() => ControlsComponent.value)
+const MiniMap = computed(() => MiniMapComponent.value)
+
+// useVueFlow wrapper - will be called after libraries are loaded
+const getVueFlowComposable = () => {
+  const win = wwLib.getFrontWindow()
+  if (win?.VueFlow?.useVueFlow) {
+    return win.VueFlow.useVueFlow()
+  }
+  return { fitView: () => {}, setViewport: () => {}, getViewport: () => ({}) }
+}
+
+// ConnectionMode
+const getConnectionMode = () => {
+  const win = wwLib.getFrontWindow()
+  return win?.VueFlow?.ConnectionMode || { Loose: 'loose', Strict: 'strict' }
+}
+
+// Dagre getter
+const getDagre = () => dagreLib
+
 const props = defineProps({
   content: { type: Object, default: () => ({}) },
   uid: { type: String, required: true },
@@ -377,7 +509,12 @@ const emit = defineEmits(['trigger-event'])
 // VUE FLOW INSTANCE
 // ============================================
 
-const { fitView, setViewport, getViewport } = useVueFlow()
+// VueFlow composable - initialized after libraries load
+let vueFlowComposable = { fitView: () => {}, setViewport: () => {}, getViewport: () => ({}) }
+
+const fitView = (...args) => vueFlowComposable.fitView?.(...args)
+const setViewport = (...args) => vueFlowComposable.setViewport?.(...args)
+const getViewport = (...args) => vueFlowComposable.getViewport?.(...args)
 
 // ============================================
 // NODE TYPES CONFIGURATION
@@ -678,7 +815,8 @@ const fitViewOnInit = computed(() => false)
 const panOnDrag = computed(() => props.content?.panOnDrag ?? true)
 const zoomOnScroll = computed(() => props.content?.zoomOnScroll ?? true)
 const connectionMode = computed(() => {
-  return props.content?.connectionMode === 'strict' ? ConnectionMode.Strict : ConnectionMode.Loose
+  const cm = getConnectionMode()
+  return props.content?.connectionMode === 'strict' ? cm.Strict : cm.Loose
 })
 
 // Background configuration
@@ -900,7 +1038,12 @@ const applyAutoLayout = (shouldFitView = false) => {
   if (!nodes.value.length) return
 
   // Create new dagre graph
-  const dagreGraph = new dagre.graphlib.Graph()
+  const d = getDagre()
+  if (!d) {
+    console.warn('[FLOW-BUILDER] Dagre not loaded yet')
+    return
+  }
+  const dagreGraph = new d.graphlib.Graph()
   dagreGraph.setDefaultEdgeLabel(() => ({}))
 
   // Configure layout: top to bottom, with appropriate spacing
@@ -926,7 +1069,7 @@ const applyAutoLayout = (shouldFitView = false) => {
   })
 
   // Run dagre layout algorithm
-  dagre.layout(dagreGraph)
+  d.layout(dagreGraph)
 
   // Apply calculated positions back to nodes
   // IMPORTANT: Dagre uses center-center anchoring, Vue Flow uses top-left
@@ -2024,33 +2167,20 @@ const getQueryParam = (param) => {
   }
 }
 
-// Inject Vue Flow CSS dynamically from CDN
-const injectVueFlowCSS = () => {
-  const doc = wwLib.getFrontDocument()
-  if (!doc) return
-
-  const cssUrls = [
-    'https://unpkg.com/@vue-flow/core@1.33.5/dist/style.css',
-    'https://unpkg.com/@vue-flow/core@1.33.5/dist/theme-default.css',
-    'https://unpkg.com/@vue-flow/controls@1.1.3/dist/style.css',
-    'https://unpkg.com/@vue-flow/minimap@1.4.0/dist/style.css'
-  ]
-
-  cssUrls.forEach((url, index) => {
-    const linkId = `vue-flow-css-${index}`
-    if (!doc.getElementById(linkId)) {
-      const link = doc.createElement('link')
-      link.id = linkId
-      link.rel = 'stylesheet'
-      link.href = url
-      doc.head.appendChild(link)
-    }
-  })
-}
-
 onMounted(async () => {
-  // Inject Vue Flow CSS
-  injectVueFlowCSS()
+  // Load Vue Flow libraries from CDN first
+  try {
+    await loadVueFlowFromCDN()
+
+    // Initialize useVueFlow composable after libraries are loaded
+    const win = wwLib.getFrontWindow()
+    if (win?.VueFlow?.useVueFlow) {
+      vueFlowComposable = win.VueFlow.useVueFlow()
+    }
+  } catch (error) {
+    console.error('[FLOW-BUILDER] Failed to initialize Vue Flow:', error)
+    return
+  }
 
   // Add keyboard event listener to prevent node deletion
   document.addEventListener('keydown', handleKeyDown, true)
@@ -2121,6 +2251,51 @@ onBeforeUnmount(() => {
   flex-direction: column;
   width: 100%;
   height: 100%;
+}
+
+/* Loading State */
+.flow-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: #f9fafb;
+}
+
+.flow-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.flow-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #dc2626;
+  font-size: 14px;
+  padding: 20px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Header Styles */
