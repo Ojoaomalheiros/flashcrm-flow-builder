@@ -18,18 +18,37 @@ const NODE_TYPE_TO_TIPO_ACAO = {
 }
 
 /**
- * Map internal delay units to database format
+ * Map internal delay units to database format (English -> Portuguese)
  */
 const DELAY_UNIT_MAP = {
   'minutes': 'minutos',
   'hours': 'horas',
   'days': 'dias',
   'weeks': 'semanas',
+  'months': 'meses',
   // Portuguese to Portuguese (already correct)
   'minutos': 'minutos',
   'horas': 'horas',
   'dias': 'dias',
   'semanas': 'semanas',
+  'meses': 'meses',
+}
+
+/**
+ * Map database delay units to internal format (Portuguese -> English)
+ */
+const DELAY_UNIT_MAP_REVERSE = {
+  'minutos': 'minutes',
+  'horas': 'hours',
+  'dias': 'days',
+  'semanas': 'weeks',
+  'meses': 'months',
+  // English to English (already correct)
+  'minutes': 'minutes',
+  'hours': 'hours',
+  'days': 'days',
+  'weeks': 'weeks',
+  'months': 'months',
 }
 
 /**
@@ -437,8 +456,11 @@ function formatConfigForNode(nodeType, config) {
       }
 
     case 'delay':
+      // Map Portuguese units from database to English for the form
+      const dbUnit = config.unidade || 'horas'
+      const formUnit = DELAY_UNIT_MAP_REVERSE[dbUnit] || 'hours'
       return {
-        tipo: config.unidade || 'horas',
+        tipo: formUnit,
         valor: config.quantidade || 0,
       }
 

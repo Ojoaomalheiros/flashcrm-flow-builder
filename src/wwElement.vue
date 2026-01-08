@@ -48,7 +48,13 @@
         <button class="header-btn header-btn-secondary" @click="handleBack">
           <span>Voltar</span>
         </button>
-        <button class="header-btn header-btn-primary" @click="handleSave">
+        <button
+          class="header-btn header-btn-primary"
+          :class="{ 'header-btn-disabled': !isFlowValid }"
+          :disabled="!isFlowValid"
+          @click="handleSave"
+          :title="!isFlowValid ? 'Preencha todos os nodes antes de salvar' : 'Salvar fluxo'"
+        >
           <span>Salvar</span>
         </button>
       </div>
@@ -1674,6 +1680,8 @@ const confirmBack = () => {
     name: 'back',
     event: {},
   })
+  // Redirecionar para a página de automações
+  wwLib.goTo('/automacoes')
 }
 
 // Handle save button click - shows confirmation modal
@@ -1848,6 +1856,9 @@ const confirmSave = async () => {
 
     // Close modal on success
     showSaveConfirm.value = false
+
+    // Redirecionar para a página de automações após salvar com sucesso
+    wwLib.goTo('/automacoes')
 
   } catch (err) {
     console.error('[FLOW-BUILDER] ❌ Erro inesperado ao salvar:', err)
@@ -2213,8 +2224,35 @@ const loadFluxoFromDatabase = async (fluxoId) => {
       edges: loadedEdges.length
     })
 
+    // Enrich nodes with template data (nome, conteudo) from messageTemplates collection
+    const templates = messageTemplates.value || []
+    const enrichedNodes = loadedNodes.map(node => {
+      // Only enrich send_sms, send_whatsapp, send_email nodes
+      if (['send_sms', 'send_whatsapp', 'send_email'].includes(node.type)) {
+        const templateId = node.data?.config?.template_id
+        if (templateId) {
+          const template = templates.find(t => t.id === templateId)
+          if (template) {
+            console.log(`[FLOW-BUILDER] Enriching node ${node.id} with template:`, template.nome)
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                config: {
+                  ...node.data.config,
+                  template_nome: template.nome || '',
+                  template_conteudo: template.conteudo || '',
+                },
+              },
+            }
+          }
+        }
+      }
+      return node
+    })
+
     // Set the nodes and edges
-    nodes.value = loadedNodes
+    nodes.value = enrichedNodes
     edges.value = loadedEdges
 
     // Update internal variables
@@ -2554,8 +2592,15 @@ onBeforeUnmount(() => {
   border: none;
 }
 
-.header-btn-primary:hover {
+.header-btn-primary:hover:not(:disabled) {
   background: #6d28d9;
+}
+
+.header-btn-primary:disabled,
+.header-btn-primary.header-btn-disabled {
+  background: #c4b5fd;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .flow-builder-container {
