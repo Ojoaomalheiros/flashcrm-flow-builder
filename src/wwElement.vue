@@ -359,7 +359,20 @@
 </template>
 
 <script setup>
-import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+
+// Import Vue Flow from npm packages (not CDN to avoid Vue instance mismatch)
+import { VueFlow as VueFlowComponent, useVueFlow as useVueFlowComposable, Handle, Position, ConnectionMode as VueFlowConnectionMode } from '@vue-flow/core'
+import { Background as BackgroundComponent } from '@vue-flow/background'
+import { Controls as ControlsComponent } from '@vue-flow/controls'
+import { MiniMap as MiniMapComponent } from '@vue-flow/minimap'
+import dagre from '@dagrejs/dagre'
+
+// Import Vue Flow styles
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
+import '@vue-flow/minimap/dist/style.css'
 
 // Import custom nodes
 import TriggerNode from './components/nodes/TriggerNode.vue'
@@ -377,193 +390,45 @@ import {
   validateFlowForExport
 } from './utils/flowConverter.js'
 
-// Vue Flow components - will be loaded dynamically
-const vueFlowLoaded = ref(false)
+// Vue Flow components - now imported directly (not loaded dynamically)
+const vueFlowLoaded = ref(true) // Already loaded via npm imports
 const vueFlowError = ref(null)
 
-// Reactive references for Vue Flow components
-const VueFlowComponent = shallowRef(null)
-const BackgroundComponent = shallowRef(null)
-const ControlsComponent = shallowRef(null)
-const MiniMapComponent = shallowRef(null)
-const vueFlowInstance = shallowRef(null)
-
 // Store dagre reference
-let dagreLib = null
+const dagreLib = dagre
 
-// Load Vue Flow libraries from CDN using script tags
-const loadVueFlowFromCDN = async () => {
-  const doc = wwLib.getFrontDocument()
-  const win = wwLib.getFrontWindow()
-
-  if (!doc || !win) {
-    throw new Error('Could not access document or window')
-  }
-
-  // Helper to load a script
-  const loadScript = (src, id) => {
-    return new Promise((resolve, reject) => {
-      if (doc.getElementById(id)) {
-        console.log(`[FLOW-BUILDER] Script ${id} already exists, skipping`)
-        resolve()
-        return
-      }
-
-      const script = doc.createElement('script')
-      script.id = id
-      script.src = src
-      script.onload = () => {
-        console.log(`[FLOW-BUILDER] Script ${id} loaded successfully`)
-        resolve()
-      }
-      script.onerror = (e) => {
-        console.error(`[FLOW-BUILDER] Script ${id} failed to load:`, e)
-        reject(new Error('Failed to load: ' + src))
-      }
-      doc.head.appendChild(script)
-    })
-  }
-
-  // Helper to load CSS
-  const loadCSS = (href, id) => {
-    if (doc.getElementById(id)) return
-    const link = doc.createElement('link')
-    link.id = id
-    link.rel = 'stylesheet'
-    link.href = href
-    doc.head.appendChild(link)
-  }
-
-  try {
-    // Load CSS files
-    loadCSS('https://unpkg.com/@vue-flow/core@1.33.5/dist/style.css', 'vue-flow-core-css')
-    loadCSS('https://unpkg.com/@vue-flow/core@1.33.5/dist/theme-default.css', 'vue-flow-theme-css')
-    loadCSS('https://unpkg.com/@vue-flow/controls@1.1.3/dist/style.css', 'vue-flow-controls-css')
-    loadCSS('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/style.css', 'vue-flow-minimap-css')
-    console.log('[FLOW-BUILDER] CSS files loaded')
-
-    // Check current Vue status
-    console.log('[FLOW-BUILDER] Current win.Vue:', win.Vue)
-    console.log('[FLOW-BUILDER] Current win.Vue type:', typeof win.Vue)
-
-    // DO NOT load Vue from CDN - use WeWeb's Vue to avoid conflicts
-    // The Vue Flow IIFE should use the existing Vue from WeWeb
-    if (!win.Vue) {
-      console.log('[FLOW-BUILDER] No Vue found, loading from CDN as fallback')
-      await loadScript('https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js', 'vue-global')
-    } else {
-      console.log('[FLOW-BUILDER] Using existing Vue from WeWeb')
-    }
-
-    console.log('[FLOW-BUILDER] Final win.Vue:', win.Vue)
-
-    // Load dagre
-    await loadScript('https://unpkg.com/@dagrejs/dagre@1.1.4/dist/dagre.min.js', 'dagre-lib')
-    dagreLib = win.dagre
-    console.log('[FLOW-BUILDER] Dagre loaded:', dagreLib ? 'success' : 'failed')
-
-    // Load Vue Flow core
-    console.log('[FLOW-BUILDER] Loading Vue Flow core...')
-    await loadScript('https://unpkg.com/@vue-flow/core@1.33.5/dist/vue-flow-core.iife.js', 'vue-flow-core')
-
-    // Wait a bit for the script to initialize
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    console.log('[FLOW-BUILDER] After VueFlow load - win.VueFlow:', win.VueFlow)
-    const vueKeys = Object.keys(win).filter(k => k.toLowerCase().includes('vue') || k.toLowerCase().includes('flow'))
-    console.log('[FLOW-BUILDER] All window keys with vue/flow:', vueKeys)
-    vueKeys.forEach(k => console.log(`[FLOW-BUILDER] win.${k}:`, win[k]))
-
-    // Try alternative global names that Vue Flow might use
-    const possibleNames = ['VueFlow', 'vueFlow', 'VueFlowCore', 'vueFlowCore', '@vue-flow/core']
-    possibleNames.forEach(name => {
-      if (win[name]) {
-        console.log(`[FLOW-BUILDER] Found under win.${name}:`, win[name])
-      }
-    })
-
-    // VueFlow exports to window.VueFlowCore (not VueFlow)
-    const vfCore = win.VueFlowCore || win.VueFlow
-    console.log('[FLOW-BUILDER] VueFlowCore module:', vfCore)
-
-    if (vfCore) {
-      // The module exports VueFlow as a named export
-      VueFlowComponent.value = vfCore.VueFlow
-      window.__vueFlowHandle = vfCore.Handle
-      window.__vueFlowPosition = vfCore.Position
-      vueFlowInstance.value = vfCore
-      console.log('[FLOW-BUILDER] VueFlow component assigned:', VueFlowComponent.value)
-      console.log('[FLOW-BUILDER] Handle:', vfCore.Handle)
-      console.log('[FLOW-BUILDER] Position:', vfCore.Position)
-    } else {
-      throw new Error('VueFlowCore not found after loading script')
-    }
-
-    // Load additional components
-    await loadScript('https://unpkg.com/@vue-flow/background@1.3.2/dist/vue-flow-background.iife.js', 'vue-flow-bg')
-    if (win.VueFlowBackground) {
-      BackgroundComponent.value = win.VueFlowBackground.Background
-    }
-
-    await loadScript('https://unpkg.com/@vue-flow/controls@1.1.3/dist/vue-flow-controls.iife.js', 'vue-flow-ctrl')
-    if (win.VueFlowControls) {
-      ControlsComponent.value = win.VueFlowControls.Controls
-    }
-
-    await loadScript('https://unpkg.com/@vue-flow/minimap@1.4.0/dist/vue-flow-minimap.iife.js', 'vue-flow-mm')
-    if (win.VueFlowMinimap) {
-      MiniMapComponent.value = win.VueFlowMinimap.MiniMap
-    }
-
-    console.log('[FLOW-BUILDER] All Vue Flow components loaded successfully')
-    console.log('[FLOW-BUILDER] Components:', {
-      VueFlow: !!VueFlowComponent.value,
-      Background: !!BackgroundComponent.value,
-      Controls: !!ControlsComponent.value,
-      MiniMap: !!MiniMapComponent.value,
-      Handle: !!window.__vueFlowHandle,
-      Position: !!window.__vueFlowPosition
-    })
-
-    vueFlowLoaded.value = true
-
-  } catch (error) {
-    console.error('[FLOW-BUILDER] Failed to load Vue Flow:', error)
-    vueFlowError.value = error.message
-    throw error
-  }
+// Expose Handle and Position globally for custom nodes that might need them
+if (typeof window !== 'undefined') {
+  window.__vueFlowHandle = Handle
+  window.__vueFlowPosition = Position
 }
 
-// Computed aliases for template
-const VueFlow = computed(() => VueFlowComponent.value)
-const Background = computed(() => BackgroundComponent.value)
-const Controls = computed(() => ControlsComponent.value)
-const MiniMap = computed(() => MiniMapComponent.value)
+// Log successful initialization
+console.log('[FLOW-BUILDER] Vue Flow loaded via npm (bundled with WeWeb Vue instance)')
+console.log('[FLOW-BUILDER] Components available:', {
+  VueFlow: !!VueFlowComponent,
+  Background: !!BackgroundComponent,
+  Controls: !!ControlsComponent,
+  MiniMap: !!MiniMapComponent,
+  Handle: !!Handle,
+  Position: !!Position,
+  Dagre: !!dagreLib
+})
 
-// useVueFlow wrapper - will be called after libraries are loaded
+// Computed aliases for template (now just returning the imported components directly)
+const VueFlow = computed(() => VueFlowComponent)
+const Background = computed(() => BackgroundComponent)
+const Controls = computed(() => ControlsComponent)
+const MiniMap = computed(() => MiniMapComponent)
+
+// useVueFlow wrapper - now using the imported composable directly
 const getVueFlowComposable = () => {
-  const win = wwLib.getFrontWindow()
-  const vfCore = win?.VueFlowCore || win?.VueFlow
-  if (vfCore?.useVueFlow) {
-    return vfCore.useVueFlow()
-  }
-  if (vueFlowInstance.value?.useVueFlow) {
-    return vueFlowInstance.value.useVueFlow()
-  }
-  return { fitView: () => {}, setViewport: () => {}, getViewport: () => ({}) }
+  return useVueFlowComposable
 }
 
-// ConnectionMode
+// ConnectionMode - now using the imported constant directly
 const getConnectionMode = () => {
-  const win = wwLib.getFrontWindow()
-  const vfCore = win?.VueFlowCore || win?.VueFlow
-  if (vfCore?.ConnectionMode) {
-    return vfCore.ConnectionMode
-  }
-  if (vueFlowInstance.value?.ConnectionMode) {
-    return vueFlowInstance.value.ConnectionMode
-  }
-  return { Loose: 'loose', Strict: 'strict' }
+  return VueFlowConnectionMode
 }
 
 // Dagre getter
@@ -2305,24 +2170,13 @@ const getQueryParam = (param) => {
 }
 
 onMounted(async () => {
-  // Load Vue Flow libraries from CDN first
+  // Initialize useVueFlow composable (now imported directly from npm, no CDN loading needed)
   try {
-    await loadVueFlowFromCDN()
-
-    // Initialize useVueFlow composable after libraries are loaded
-    // NOTE: We'll re-initialize this in handlePaneReady when the instance is actually ready
-    const win = wwLib.getFrontWindow()
-    const vfCore = win?.VueFlowCore || win?.VueFlow
-    if (vfCore?.useVueFlow) {
-      // Initialize with the ID to connect to the specific instance
-      vueFlowComposable = vfCore.useVueFlow({ id: vueFlowId })
-      console.log('[FLOW-BUILDER] useVueFlow initialized with id:', vueFlowId, vueFlowComposable)
-    } else if (vueFlowInstance.value?.useVueFlow) {
-      vueFlowComposable = vueFlowInstance.value.useVueFlow({ id: vueFlowId })
-      console.log('[FLOW-BUILDER] useVueFlow initialized from instance:', vueFlowComposable)
-    }
+    vueFlowComposable = useVueFlowComposable({ id: vueFlowId })
+    console.log('[FLOW-BUILDER] useVueFlow initialized with id:', vueFlowId, vueFlowComposable)
   } catch (error) {
-    console.error('[FLOW-BUILDER] Failed to initialize Vue Flow:', error)
+    console.error('[FLOW-BUILDER] Failed to initialize Vue Flow composable:', error)
+    vueFlowError.value = error.message
     return
   }
 
