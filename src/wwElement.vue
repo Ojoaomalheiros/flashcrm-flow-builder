@@ -631,18 +631,10 @@ watch(() => props.content?.flowName, (newName) => {
   }
 }, { immediate: true })
 
-// Logo URL for header (WeWeb returns relative paths, need to prefix with CDN)
+// Logo URL for header - using Supabase URL directly to avoid WeWeb CDN issues
 const logoUrl = computed(() => {
-  const url = props.content?.logoUrl
-  if (!url) return ''
-
-  // If it's already a full URL, return as is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
-  }
-
-  // Otherwise, prefix with WeWeb CDN base URL
-  return `https://cdn.weweb.io/${url}`
+  const url = props.content?.logoUrl || 'https://rposipkylgypxzqucjae.supabase.co/storage/v1/object/public/flashcrm/logoflashSemFundo.png'
+  return url
 })
 const logoError = ref(false)
 
