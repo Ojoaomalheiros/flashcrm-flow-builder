@@ -7,36 +7,56 @@
         <span class="required">*</span>
       </label>
 
-      <!-- Search Input -->
-      <div class="search-wrapper">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input
-          type="text"
-          class="search-input"
-          v-model="templateSearch"
-          placeholder="Buscar template..."
-        />
-      </div>
-
-      <!-- Template Select -->
-      <select
-        v-model="localConfig.template_id"
-        class="form-select"
-        :class="{ error: !localConfig.template_id }"
-        :size="Math.min(filteredTemplates.length + 1, 6)"
-      >
-        <option value="">Selecione um template...</option>
-        <option
-          v-for="template in filteredTemplates"
-          :key="template.id"
-          :value="template.id"
+      <!-- Custom Dropdown -->
+      <div class="custom-dropdown">
+        <!-- Trigger Button -->
+        <button
+          type="button"
+          class="dropdown-trigger"
+          :class="{ 'is-open': showDropdown, 'has-error': !localConfig.template_id }"
+          @click="showDropdown = !showDropdown"
         >
-          {{ template.nome }}
-        </option>
-      </select>
+          <span v-if="!selectedTemplate" class="trigger-placeholder">Selecione um template...</span>
+          <span v-else class="trigger-value">{{ selectedTemplate.nome }}</span>
+          <svg class="trigger-icon" :class="{ 'rotated': showDropdown }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        <!-- Dropdown Panel -->
+        <div v-if="showDropdown" class="dropdown-panel">
+          <!-- Search -->
+          <div class="dropdown-search">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              class="search-input"
+              v-model="templateSearch"
+              placeholder="Buscar template..."
+            />
+          </div>
+
+          <!-- Options List -->
+          <div class="dropdown-options">
+            <div v-if="filteredTemplates.length === 0" class="dropdown-empty">
+              Nenhum template encontrado
+            </div>
+            <button
+              v-for="template in filteredTemplates"
+              :key="template.id"
+              type="button"
+              class="dropdown-option"
+              :class="{ 'is-selected': localConfig.template_id === template.id }"
+              @click="selectTemplate(template)"
+            >
+              {{ template.nome }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Email Subject -->
@@ -100,7 +120,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update', 'close'])
 
-// Search state
+// Dropdown state
+const showDropdown = ref(false)
 const templateSearch = ref('')
 
 const localConfig = ref({
@@ -164,6 +185,15 @@ const isValid = computed(() => {
   return !!localConfig.value.template_id && !!localConfig.value.assunto?.trim()
 })
 
+// Select template from dropdown
+const selectTemplate = (template) => {
+  localConfig.value.template_id = template.id
+  localConfig.value.template_nome = template.nome || ''
+  localConfig.value.template_conteudo = template.conteudo || ''
+  showDropdown.value = false
+  templateSearch.value = ''
+}
+
 const handleUpdate = () => {
   emit('update', { ...localConfig.value })
   emit('close')
@@ -194,41 +224,142 @@ const handleUpdate = () => {
   margin-left: 2px;
 }
 
-/* Search Input */
-.search-wrapper {
+/* Custom Dropdown */
+.custom-dropdown {
   position: relative;
+}
+
+.dropdown-trigger {
   display: flex;
   align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 10px;
-  width: 16px;
-  height: 16px;
-  color: #9ca3af;
-  pointer-events: none;
-}
-
-.search-input {
+  justify-content: space-between;
   width: 100%;
-  padding: 8px 12px 8px 34px;
+  padding: 8px 12px;
+  background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 13px;
   color: #1A1A1A;
-  background: #ffffff;
+  cursor: pointer;
   transition: all 0.15s ease;
+  text-align: left;
 }
 
-.search-input:focus {
-  outline: none;
+.dropdown-trigger:hover {
+  border-color: #9ca3af;
+}
+
+.dropdown-trigger.is-open {
   border-color: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
-.search-input::placeholder {
+.dropdown-trigger.has-error {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.trigger-placeholder {
   color: #9ca3af;
+}
+
+.trigger-value {
+  color: #1A1A1A;
+}
+
+.trigger-icon {
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.trigger-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.dropdown-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dropdown-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dropdown-search .search-icon {
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.dropdown-search .search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: #1A1A1A;
+  background: transparent;
+}
+
+.dropdown-search .search-input::placeholder {
+  color: #9ca3af;
+}
+
+.dropdown-options {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.dropdown-empty {
+  padding: 16px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.dropdown-option {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.1s;
+}
+
+.dropdown-option:hover {
+  background: #f9fafb;
+}
+
+.dropdown-option.is-selected {
+  background: #f5f3ff;
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+.dropdown-option:not(:last-child) {
+  border-bottom: 1px solid #f3f4f6;
 }
 
 /* Form Input */
@@ -260,34 +391,6 @@ const handleUpdate = () => {
 .field-hint {
   font-size: 11px;
   color: #6b7280;
-}
-
-/* Form Select */
-.form-select {
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #1A1A1A;
-  background: #ffffff;
-  transition: all 0.15s ease;
-  cursor: pointer;
-  margin-top: 6px;
-}
-
-.form-select:hover {
-  border-color: #9ca3af;
-}
-
-.form-select:focus {
-  outline: none;
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-}
-
-.form-select.error {
-  border-color: #ef4444;
-  background: #fef2f2;
 }
 
 /* Template Preview */
