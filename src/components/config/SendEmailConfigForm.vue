@@ -65,16 +65,16 @@
         Assunto do E-mail
         <span class="required">*</span>
       </label>
-      <div class="subject-input-wrapper" ref="subjectVariablesRef">
-        <input
-          ref="subjectInputRef"
-          type="text"
-          class="form-input subject-input-with-btn"
-          :class="{ error: !localConfig.assunto }"
-          v-model="localConfig.assunto"
-          placeholder="Ex: Novidades especiais para voce!"
-          maxlength="200"
-        />
+      <input
+        ref="subjectInputRef"
+        type="text"
+        class="form-input"
+        :class="{ error: !localConfig.assunto }"
+        v-model="localConfig.assunto"
+        placeholder="Ex: Novidades especiais para voce!"
+        maxlength="200"
+      />
+      <div class="subject-variables-row" ref="subjectVariablesRef">
         <button
           type="button"
           class="subject-variables-btn"
@@ -85,6 +85,7 @@
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
             <circle cx="12" cy="7" r="4"/>
           </svg>
+          <span class="variables-label">Inserir variavel</span>
         </button>
 
         <!-- Variables Dropdown -->
@@ -104,7 +105,7 @@
           </template>
         </div>
       </div>
-      <span class="field-hint">Use ate 50 caracteres para melhor visualizacao. Use o icone para inserir variaveis.</span>
+      <span class="field-hint">Use ate 50 caracteres para melhor visualizacao em dispositivos moveis.</span>
     </div>
 
     <!-- Template Preview -->
@@ -472,31 +473,20 @@ const handleUpdate = () => {
 }
 
 /* Subject Variables */
-.subject-input-wrapper {
+.subject-variables-row {
   position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.subject-input-with-btn {
-  padding-right: 40px !important;
 }
 
 .subject-variables-btn {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
+  gap: 5px;
+  padding: 4px 8px;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   background: #f9fafb;
   color: #6b7280;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -507,12 +497,16 @@ const handleUpdate = () => {
   color: #7c3aed;
 }
 
+.variables-label {
+  font-weight: 500;
+}
+
 .subject-variables-dropdown {
   position: absolute;
   top: calc(100% + 4px);
-  right: 0;
+  left: 0;
   z-index: 200;
-  width: 260px;
+  width: 280px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;

@@ -779,7 +779,7 @@ const configPanelWidth = computed(() => {
   const baseWidth = props.content?.configPanelWidth || '320px'
   // Email node needs wider panel for template preview and variables
   if (currentSelectedNode.value?.type === 'send_email') {
-    return props.content?.configPanelWidth || '380px'
+    return props.content?.configPanelWidth || '420px'
   }
   return baseWidth
 })
