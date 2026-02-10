@@ -79,14 +79,24 @@
     <!-- Template Preview -->
     <div v-if="selectedTemplate" class="template-preview">
       <h4 class="preview-label">Preview</h4>
-      <div class="preview-info">
-        <div class="preview-field">
-          <span class="preview-field-label">Template:</span>
-          <span class="preview-field-value">{{ selectedTemplate.nome }}</span>
+      <!-- Email Header Info -->
+      <div class="preview-header">
+        <div class="preview-subject">
+          {{ localConfig.assunto || 'Sem assunto' }}
         </div>
-        <div class="preview-field">
-          <span class="preview-field-label">Assunto:</span>
-          <span class="preview-field-value">{{ localConfig.assunto || '(não definido)' }}</span>
+        <div class="preview-template-name">
+          {{ selectedTemplate.nome }}
+        </div>
+      </div>
+      <!-- Email Visual Preview -->
+      <div class="email-preview-area">
+        <div class="email-preview-container">
+          <iframe
+            :srcdoc="selectedTemplate.conteudo || '<p style=&quot;color:#999;text-align:center;padding:40px&quot;>Sem conteúdo</p>'"
+            class="email-preview-iframe"
+            frameborder="0"
+            scrolling="no"
+          ></iframe>
         </div>
       </div>
     </div>
@@ -398,11 +408,12 @@ const handleUpdate = () => {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  padding: 16px;
+  overflow: hidden;
 }
 
 .preview-label {
-  margin: 0 0 12px 0;
+  margin: 0;
+  padding: 12px 16px 0 16px;
   font-size: 11px;
   font-weight: 600;
   color: #6b7280;
@@ -410,28 +421,50 @@ const handleUpdate = () => {
   letter-spacing: 0.3px;
 }
 
-.preview-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.preview-header {
+  padding: 8px 16px 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.preview-field {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.preview-field-label {
-  color: #6b7280;
-  font-weight: 500;
-  min-width: 60px;
-}
-
-.preview-field-value {
+.preview-subject {
+  font-size: 14px;
+  font-weight: 600;
   color: #1a1a1a;
-  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-template-name {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* Email Visual Preview */
+.email-preview-area {
+  position: relative;
+  height: 320px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.email-preview-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.email-preview-iframe {
+  width: 200%;
+  height: 200%;
+  transform: scale(0.5);
+  transform-origin: top left;
+  pointer-events: none;
+  background: white;
+  border: none;
 }
 
 /* Form Actions */
