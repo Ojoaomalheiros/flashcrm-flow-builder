@@ -85,7 +85,6 @@
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
             <circle cx="12" cy="7" r="4"/>
           </svg>
-          <span>Variaveis</span>
         </button>
 
         <!-- Variables Dropdown -->
@@ -105,7 +104,7 @@
           </template>
         </div>
       </div>
-      <span class="field-hint">Use ate 50 caracteres para melhor visualizacao. Clique em "Variaveis" para personalizar.</span>
+      <span class="field-hint">Use ate 50 caracteres para melhor visualizacao. Use o icone para inserir variaveis.</span>
     </div>
 
     <!-- Template Preview -->
@@ -480,7 +479,7 @@ const handleUpdate = () => {
 }
 
 .subject-input-with-btn {
-  padding-right: 110px !important;
+  padding-right: 40px !important;
 }
 
 .subject-variables-btn {
@@ -490,17 +489,16 @@ const handleUpdate = () => {
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
   background: #f9fafb;
   color: #6b7280;
-  font-size: 11px;
-  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
-  white-space: nowrap;
 }
 
 .subject-variables-btn:hover {

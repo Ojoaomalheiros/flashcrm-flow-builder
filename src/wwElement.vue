@@ -775,7 +775,14 @@ const showStatusPanel = computed(() => props.content?.showStatusPanel ?? true)
 const showActionButtons = computed(() => props.content?.showActionButtons ?? true)
 const showConfigPanel = computed(() => props.content?.showConfigPanel ?? true)
 const configPanelPosition = computed(() => props.content?.configPanelPosition || 'right')
-const configPanelWidth = computed(() => props.content?.configPanelWidth || '320px')
+const configPanelWidth = computed(() => {
+  const baseWidth = props.content?.configPanelWidth || '320px'
+  // Email node needs wider panel for template preview and variables
+  if (currentSelectedNode.value?.type === 'send_email') {
+    return props.content?.configPanelWidth || '380px'
+  }
+  return baseWidth
+})
 
 // Default new node type
 const defaultNewNodeType = computed(() => props.content?.defaultNewNodeType || 'send_sms')
