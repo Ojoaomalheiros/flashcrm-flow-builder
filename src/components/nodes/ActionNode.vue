@@ -283,12 +283,12 @@ const configSummary = computed(() => {
       return () => h('div', { class: 'summary-placeholder' }, 'Clique para configurar')
 
     case 'send_email':
-      // Show template name and preview
+      // Show template name and subject
       if (config.template_id && config.template_nome) {
         return () => h('div', { class: 'summary-content sms-summary' }, [
           h('div', { class: 'sms-template-name' }, config.template_nome),
-          config.template_conteudo
-            ? h('div', { class: 'sms-template-preview' }, truncateText(config.template_conteudo, 60))
+          config.assunto
+            ? h('div', { class: 'sms-template-preview' }, config.assunto)
             : null,
         ])
       }
