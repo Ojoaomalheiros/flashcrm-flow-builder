@@ -65,15 +65,47 @@
         Assunto do E-mail
         <span class="required">*</span>
       </label>
-      <input
-        type="text"
-        class="form-input"
-        :class="{ error: !localConfig.assunto }"
-        v-model="localConfig.assunto"
-        placeholder="Ex: Novidades especiais para voce!"
-        maxlength="200"
-      />
-      <span class="field-hint">Use ate 50 caracteres para melhor visualizacao em dispositivos moveis.</span>
+      <div class="subject-input-wrapper" ref="subjectVariablesRef">
+        <input
+          ref="subjectInputRef"
+          type="text"
+          class="form-input subject-input-with-btn"
+          :class="{ error: !localConfig.assunto }"
+          v-model="localConfig.assunto"
+          placeholder="Ex: Novidades especiais para voce!"
+          maxlength="200"
+        />
+        <button
+          type="button"
+          class="subject-variables-btn"
+          title="Inserir variavel dinamica"
+          @click="showSubjectVariables = !showSubjectVariables"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span>Variaveis</span>
+        </button>
+
+        <!-- Variables Dropdown -->
+        <div v-if="showSubjectVariables" class="subject-variables-dropdown">
+          <template v-for="(variables, category) in groupedVariables" :key="category">
+            <div class="var-dropdown-category">{{ category }}</div>
+            <button
+              v-for="variable in variables"
+              :key="variable.value"
+              type="button"
+              class="var-dropdown-item"
+              @click="insertSubjectVariable(variable)"
+            >
+              <span class="var-item-label">{{ variable.label }}</span>
+              <span class="var-item-tag">{{ variable.value }}</span>
+            </button>
+          </template>
+        </div>
+      </div>
+      <span class="field-hint">Use ate 50 caracteres para melhor visualizacao. Clique em "Variaveis" para personalizar.</span>
     </div>
 
     <!-- Template Preview -->
@@ -121,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   config: { type: Object, default: () => ({}) },
@@ -130,8 +162,13 @@ const props = defineProps({
 
 const emit = defineEmits(['update', 'close'])
 
+// Refs
+const subjectInputRef = ref(null)
+const subjectVariablesRef = ref(null)
+
 // Dropdown state
 const showDropdown = ref(false)
+const showSubjectVariables = ref(false)
 const templateSearch = ref('')
 
 const localConfig = ref({
@@ -203,6 +240,69 @@ const selectTemplate = (template) => {
   showDropdown.value = false
   templateSearch.value = ''
 }
+
+// Dynamic Variables
+const availableVariables = [
+  // Cliente
+  { value: '{{nome_cliente}}', label: 'Nome', category: 'Cliente' },
+  { value: '{{sobrenome}}', label: 'Sobrenome', category: 'Cliente' },
+  { value: '{{email}}', label: 'E-mail', category: 'Cliente' },
+  { value: '{{telefone}}', label: 'Telefone', category: 'Cliente' },
+  // Pedido
+  { value: '{{numero_pedido}}', label: 'Numero do Pedido', category: 'Pedido' },
+  { value: '{{valor_pedido}}', label: 'Valor do Pedido', category: 'Pedido' },
+  // Cashback
+  { value: '{{valor_cashback}}', label: 'Valor do Cashback', category: 'Cashback' },
+  { value: '{{cupom}}', label: 'Codigo do Cupom', category: 'Cashback' },
+  { value: '{{data_vencimento}}', label: 'Data de Vencimento', category: 'Cashback' },
+  { value: '{{data_ativacao}}', label: 'Data de Ativacao', category: 'Cashback' },
+  { value: '{{compra_minima}}', label: 'Compra Minima', category: 'Cashback' },
+  { value: '{{desconto_max}}', label: 'Desconto Maximo', category: 'Cashback' },
+]
+
+const groupedVariables = computed(() => {
+  const groups = {}
+  availableVariables.forEach(v => {
+    const cat = v.category || 'Outros'
+    if (!groups[cat]) groups[cat] = []
+    groups[cat].push(v)
+  })
+  return groups
+})
+
+const insertSubjectVariable = (variable) => {
+  const input = subjectInputRef.value
+  if (!input) return
+
+  const start = input.selectionStart
+  const end = input.selectionEnd
+  const text = localConfig.value.assunto || ''
+  const newText = text.substring(0, start) + variable.value + text.substring(end)
+
+  localConfig.value.assunto = newText
+  showSubjectVariables.value = false
+
+  nextTick(() => {
+    input.focus()
+    const newPos = start + variable.value.length
+    input.setSelectionRange(newPos, newPos)
+  })
+}
+
+// Click outside to close dropdowns
+const handleClickOutside = (event) => {
+  if (showSubjectVariables.value && subjectVariablesRef.value && !subjectVariablesRef.value.contains(event.target)) {
+    showSubjectVariables.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 const handleUpdate = () => {
   emit('update', { ...localConfig.value })
@@ -370,6 +470,105 @@ const handleUpdate = () => {
 
 .dropdown-option:not(:last-child) {
   border-bottom: 1px solid #f3f4f6;
+}
+
+/* Subject Variables */
+.subject-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.subject-input-with-btn {
+  padding-right: 110px !important;
+}
+
+.subject-variables-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.subject-variables-btn:hover {
+  background: #f3f0ff;
+  border-color: #c4b5fd;
+  color: #7c3aed;
+}
+
+.subject-variables-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 200;
+  width: 260px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.var-dropdown-category {
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.var-dropdown-category:not(:first-child) {
+  border-top: 1px solid #f3f4f6;
+  margin-top: 4px;
+  padding-top: 10px;
+}
+
+.var-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  text-align: left;
+}
+
+.var-dropdown-item:hover {
+  background: #f5f3ff;
+}
+
+.var-item-label {
+  font-size: 12px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.var-item-tag {
+  font-size: 10px;
+  color: #7c3aed;
+  background: #f5f3ff;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: monospace;
 }
 
 /* Form Input */
