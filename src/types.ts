@@ -43,9 +43,12 @@ export interface FlowEdge {
 // CONFIG TYPES (JSONB Fields)
 // ============================================
 
+export type TriggerTipo = 'order_status_change' | 'carrinho_abandonado'
+
 export interface TriggerConfig {
-  status_from?: string  // null = qualquer status inicial
-  status_to: string     // ex: "paid", "delivered", "cancelled"
+  trigger_tipo: TriggerTipo | ''  // '' = não configurado
+  status_from?: string | null  // null = qualquer status inicial
+  status_to?: string     // ex: "paid", "delivered", "cancelled"
 }
 
 export type AcaoConfig =
@@ -176,7 +179,7 @@ export interface FluxoPayload {
 export interface FluxoData {
   nome: string
   descricao: string
-  trigger_tipo: 'order_status_change'
+  trigger_tipo: TriggerTipo
   trigger_config: TriggerConfig
   ativo: boolean
 }

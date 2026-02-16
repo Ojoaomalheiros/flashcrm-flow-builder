@@ -9,8 +9,15 @@
 
     <!-- Node Content -->
     <div class="node-header">
-      <div class="node-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="node-icon" :class="{ 'node-icon-cart': isCarrinhoAbandonado }">
+        <!-- Cart icon for carrinho_abandonado -->
+        <svg v-if="isCarrinhoAbandonado" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="9" cy="21" r="1"></circle>
+          <circle cx="20" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+        <!-- Lightning icon for order_status_change / default -->
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
       </div>
@@ -25,21 +32,36 @@
 
       <!-- Status Pills -->
       <div v-if="hasConfig" class="status-pills">
-        <span v-if="data?.config?.status_from" class="status-pill from">
-          {{ data.config.status_from }}
-        </span>
-        <span v-if="data?.config?.status_from" class="status-arrow">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-          </svg>
-        </span>
-        <span v-if="data?.config?.status_to" class="status-pill to">
-          {{ data.config.status_to }}
-        </span>
-        <span v-if="!data?.config?.status_to" class="status-pill unconfigured">
-          Nao configurado
-        </span>
+        <!-- Carrinho Abandonado pill -->
+        <template v-if="isCarrinhoAbandonado">
+          <span class="status-pill cart">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px; vertical-align: middle;">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            Abandonado
+          </span>
+        </template>
+
+        <!-- Order Status Change pills -->
+        <template v-else>
+          <span v-if="data?.config?.status_from" class="status-pill from">
+            {{ data.config.status_from }}
+          </span>
+          <span v-if="data?.config?.status_from" class="status-arrow">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </span>
+          <span v-if="data?.config?.status_to" class="status-pill to">
+            {{ data.config.status_to }}
+          </span>
+          <span v-if="!data?.config?.status_to && !isCarrinhoAbandonado" class="status-pill unconfigured">
+            Nao configurado
+          </span>
+        </template>
       </div>
     </div>
 
@@ -90,6 +112,10 @@ const props = defineProps({
 
 const emit = defineEmits(['add-node'])
 
+// Check trigger type
+const triggerTipo = computed(() => props.data?.config?.trigger_tipo || '')
+const isCarrinhoAbandonado = computed(() => triggerTipo.value === 'carrinho_abandonado')
+
 // Check if config exists
 const hasConfig = computed(() => {
   return props.data?.config && Object.keys(props.data.config).length > 0
@@ -101,7 +127,11 @@ const isValid = computed(() => {
   if (props.data?.valid !== undefined) {
     return props.data.valid
   }
-  // Otherwise check if status_to is configured
+  // Must have a trigger type selected
+  if (!triggerTipo.value) return false
+  // carrinho_abandonado is always valid once selected
+  if (isCarrinhoAbandonado.value) return true
+  // order_status_change needs status_to
   return Boolean(props.data?.config?.status_to)
 })
 
@@ -110,7 +140,10 @@ const errorMessage = computed(() => {
   if (props.data?.errors && props.data.errors.length > 0) {
     return props.data.errors[0]
   }
-  if (!props.data?.config?.status_to) {
+  if (!triggerTipo.value) {
+    return 'Tipo de gatilho nao selecionado'
+  }
+  if (!isCarrinhoAbandonado.value && !props.data?.config?.status_to) {
     return 'Status de destino obrigatorio'
   }
   return ''
@@ -119,7 +152,11 @@ const errorMessage = computed(() => {
 // Computed description for the trigger status
 const statusDescription = computed(() => {
   const config = props.data?.config
-  if (!config) return 'Clique para configurar'
+  if (!config || !config.trigger_tipo) return 'Clique para configurar'
+
+  if (config.trigger_tipo === 'carrinho_abandonado') {
+    return 'Carrinho abandonado criado'
+  }
 
   const statusTo = config.status_to
   if (!statusTo) return 'Clique para configurar'
@@ -260,6 +297,20 @@ const handleAddNode = () => {
   border: 1px solid #fecaca;
   color: #dc2626;
   font-style: italic;
+}
+
+.status-pill.cart {
+  background: #fefce8;
+  border: 1px solid #d97706;
+  color: #92400e;
+  display: inline-flex;
+  align-items: center;
+}
+
+.node-icon-cart {
+  background: #fefce8 !important;
+  border-color: rgba(217, 119, 6, 0.2) !important;
+  color: #d97706 !important;
 }
 
 .status-arrow {

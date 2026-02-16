@@ -1,7 +1,25 @@
 <template>
   <div class="config-form">
-    <!-- Status Selection -->
+    <!-- Trigger Type Selection -->
     <div class="form-group">
+      <label class="form-label">
+        Tipo de Gatilho
+        <span class="required">*</span>
+      </label>
+      <select
+        v-model="localConfig.trigger_tipo"
+        class="form-select"
+        :class="{ error: !localConfig.trigger_tipo }"
+        @change="handleTriggerTypeChange"
+      >
+        <option value="">Selecione o tipo...</option>
+        <option value="order_status_change">Mudanca de Status do Pedido</option>
+        <option value="carrinho_abandonado">Carrinho Abandonado Criado</option>
+      </select>
+    </div>
+
+    <!-- Status Selection (only for order_status_change) -->
+    <div v-if="localConfig.trigger_tipo === 'order_status_change'" class="form-group">
       <label class="form-label">
         Disparar quando status for:
         <span class="required">*</span>
@@ -27,8 +45,8 @@
       </p>
     </div>
 
-    <!-- Info Box - Como funciona -->
-    <div v-if="localConfig.status_to" class="info-box">
+    <!-- Info Box - Como funciona (order_status_change) -->
+    <div v-if="localConfig.trigger_tipo === 'order_status_change' && localConfig.status_to" class="info-box">
       <div class="info-icon">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"></circle>
@@ -39,8 +57,26 @@
       <div class="info-content">
         <strong>Como funciona:</strong>
         <p>
-          Este fluxo será disparado quando um pedido mudar para
+          Este fluxo sera disparado quando um pedido mudar para
           <strong>"{{ selectedStatusLabel }}"</strong>, vindo de qualquer outro status.
+        </p>
+      </div>
+    </div>
+
+    <!-- Info Box - Carrinho Abandonado -->
+    <div v-if="localConfig.trigger_tipo === 'carrinho_abandonado'" class="info-box info-box-cart">
+      <div class="info-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="9" cy="21" r="1"></circle>
+          <circle cx="20" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+      </div>
+      <div class="info-content">
+        <strong>Como funciona:</strong>
+        <p>
+          Este fluxo sera disparado automaticamente quando um carrinho abandonado for capturado na loja.
+          Nenhuma configuracao adicional e necessaria.
         </p>
       </div>
     </div>
@@ -93,12 +129,12 @@
     </details>
 
     <!-- Preview -->
-    <div class="preview-box">
+    <div v-if="localConfig.trigger_tipo" class="preview-box">
       <h4 class="preview-title">Preview do Gatilho</h4>
       <div class="preview-content">
         <div class="preview-row">
           <span class="preview-label">Tipo:</span>
-          <span class="preview-value">Mudança de Status do Pedido</span>
+          <span class="preview-value">{{ previewTipoText }}</span>
         </div>
         <div class="preview-row">
           <span class="preview-label">Dispara quando:</span>
@@ -108,7 +144,7 @@
           <span class="preview-label">Reentrada:</span>
           <span class="preview-value">
             {{ localConfig.intervalo_reentrada_dias
-              ? `Permitida após ${localConfig.intervalo_reentrada_dias} dia(s)`
+              ? `Permitida apos ${localConfig.intervalo_reentrada_dias} dia(s)`
               : 'Permitida imediatamente'
             }}
           </span>
@@ -146,7 +182,8 @@ const props = defineProps({
 const emit = defineEmits(['update', 'close'])
 
 const localConfig = ref({
-  status_from: null,  // SEMPRE null, conforme guia técnico
+  trigger_tipo: '',
+  status_from: null,  // SEMPRE null, conforme guia tecnico
   status_to: '',
   permitir_reentrada: false,
   intervalo_reentrada_dias: null,
@@ -156,6 +193,7 @@ const localConfig = ref({
 watch(() => props.config, (newConfig) => {
   if (newConfig) {
     localConfig.value = {
+      trigger_tipo: newConfig.trigger_tipo || '',
       status_from: null,  // SEMPRE null
       status_to: newConfig.status_to || '',
       permitir_reentrada: newConfig.permitir_reentrada || false,
@@ -163,6 +201,13 @@ watch(() => props.config, (newConfig) => {
     }
   }
 }, { immediate: true, deep: true })
+
+// Handle trigger type change
+const handleTriggerTypeChange = () => {
+  // Reset status fields when changing type
+  localConfig.value.status_from = null
+  localConfig.value.status_to = ''
+}
 
 // Selected status info
 const selectedStatus = computed(() => {
@@ -177,8 +222,18 @@ const selectedStatusDescription = computed(() => {
   return selectedStatus.value?.description || ''
 })
 
-// Preview text
+// Preview texts
+const previewTipoText = computed(() => {
+  if (localConfig.value.trigger_tipo === 'carrinho_abandonado') {
+    return 'Carrinho Abandonado'
+  }
+  return 'Mudanca de Status do Pedido'
+})
+
 const previewStatusText = computed(() => {
+  if (localConfig.value.trigger_tipo === 'carrinho_abandonado') {
+    return 'Carrinho abandonado criado na loja'
+  }
   if (!localConfig.value.status_to) {
     return 'Selecione um status'
   }
@@ -198,14 +253,21 @@ const handleReentradaChange = () => {
 
 // Validation
 const isValid = computed(() => {
-  return !!localConfig.value.status_to
+  if (!localConfig.value.trigger_tipo) return false
+  if (localConfig.value.trigger_tipo === 'order_status_change') {
+    return !!localConfig.value.status_to
+  }
+  // carrinho_abandonado is valid without extra config
+  return true
 })
 
 const handleUpdate = () => {
-  // IMPORTANTE: status_from SEMPRE é null
   const config = {
+    trigger_tipo: localConfig.value.trigger_tipo,
     status_from: null,
-    status_to: localConfig.value.status_to,
+    status_to: localConfig.value.trigger_tipo === 'order_status_change'
+      ? localConfig.value.status_to
+      : '',
     permitir_reentrada: localConfig.value.permitir_reentrada,
     intervalo_reentrada_dias: localConfig.value.permitir_reentrada
       ? (localConfig.value.intervalo_reentrada_dias ?? 0)
@@ -318,6 +380,23 @@ const handleUpdate = () => {
 .info-content p {
   margin: 0;
   color: #1e3a8a;
+}
+
+.info-box-cart {
+  background: #fefce8;
+  border-color: #fde68a;
+}
+
+.info-box-cart .info-icon {
+  color: #d97706;
+}
+
+.info-box-cart .info-content {
+  color: #92400e;
+}
+
+.info-box-cart .info-content p {
+  color: #78350f;
 }
 
 /* Advanced Settings */

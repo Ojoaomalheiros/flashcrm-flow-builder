@@ -563,7 +563,7 @@ const { value: triggerConfigVar, setValue: setTriggerConfig } = wwLib.wwVariable
   uid: props.uid,
   name: 'triggerConfig',
   type: 'object',
-  defaultValue: { status_from: '', status_to: '' },
+  defaultValue: { trigger_tipo: '', status_from: null, status_to: '' },
 })
 
 const { value: exportedAcoesVar, setValue: setExportedAcoes } = wwLib.wwVariable.useComponentVariable({
@@ -846,17 +846,17 @@ const processInitialNodes = () => {
     }))
   }
 
-  // Default: create initial trigger node
+  // Default: create initial trigger node (trigger_tipo '' = not configured yet)
   return [{
     id: 'trigger_1',
     type: 'trigger',
     position: { x: 250, y: 50 },
     data: {
       label: 'Gatilho',
-      config: { status_from: '', status_to: '' },
+      config: { trigger_tipo: '', status_from: null, status_to: '' },
       ordem: 0,
       valid: false,
-      errors: ['status_to e obrigatorio'],
+      errors: ['Tipo de gatilho nao selecionado'],
     },
     draggable: false,
     selectable: true,
@@ -1252,7 +1252,7 @@ const getNodeLabel = (type) => {
 
 const getDefaultConfig = (type) => {
   const configs = {
-    trigger: { status_from: '', status_to: '' },
+    trigger: { trigger_tipo: '', status_from: null, status_to: '' },
     send_sms: { origem: 'custom', mensagem: '', variaveis: {} },
     send_whatsapp: { origem: 'custom', mensagem: '', variaveis: {}, media_url: '' },
     send_email: { origem: 'custom', assunto: '', mensagem_html: '', de_nome: '', de_email: '', variaveis: {} },
@@ -1358,7 +1358,7 @@ const runValidation = () => {
   // Update trigger config
   const triggerNode = nodes.value.find(n => n.type === 'trigger')
   if (triggerNode) {
-    setTriggerConfig(triggerNode.data?.config || { status_from: '', status_to: '' })
+    setTriggerConfig(triggerNode.data?.config || { trigger_tipo: '', status_from: null, status_to: '' })
   }
 
   emit('trigger-event', {
@@ -1503,6 +1503,13 @@ const handleUpdateNodeConfig = ({ nodeId, config }) => {
   const nodeIndex = nodes.value.findIndex(n => n.id === nodeId)
   if (nodeIndex !== -1) {
     nodes.value[nodeIndex].data.config = { ...config }
+
+    // Update trigger node label based on trigger_tipo
+    if (nodes.value[nodeIndex].type === 'trigger' && config.trigger_tipo) {
+      nodes.value[nodeIndex].data.label = config.trigger_tipo === 'carrinho_abandonado'
+        ? 'Gatilho: Carrinho Abandonado'
+        : 'Gatilho: Mudanca de Status'
+    }
 
     // Re-validate this node
     const validation = validateNodeConfig(nodes.value[nodeIndex].type, config)
@@ -2076,7 +2083,11 @@ const loadFluxoFromDatabase = async (fluxoId) => {
     }
 
     // Convert database format to Vue Flow nodes/edges
-    const triggerConfig = data.fluxo?.trigger_config || { status_from: '', status_to: '' }
+    // Merge trigger_tipo from fluxo level into triggerConfig for the node
+    const triggerConfig = {
+      trigger_tipo: data.fluxo?.trigger_tipo || 'order_status_change',
+      ...(data.fluxo?.trigger_config || { status_from: null, status_to: '' }),
+    }
     const { nodes: loadedNodes, edges: loadedEdges } = convertAcoesToNodes(
       data.acoes || [],
       triggerConfig,

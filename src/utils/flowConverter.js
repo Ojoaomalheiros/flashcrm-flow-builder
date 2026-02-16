@@ -256,16 +256,28 @@ export function convertAcoesToNodes(acoes, triggerConfig, primeiraAcaoId = null)
 
   // Add trigger node first
   const triggerNodeId = 'trigger_1'
+  const triggerTipo = triggerConfig?.trigger_tipo || ''
+  const isCarrinho = triggerTipo === 'carrinho_abandonado'
+  const triggerLabel = isCarrinho
+    ? 'Gatilho: Carrinho Abandonado'
+    : 'Gatilho: Mudanca de Status'
+  const triggerValid = isCarrinho
+    ? true
+    : Boolean(triggerConfig?.status_to)
+  const triggerErrors = triggerValid
+    ? []
+    : (triggerTipo ? ['status_to e obrigatorio'] : ['Tipo de gatilho nao selecionado'])
+
   nodes.push({
     id: triggerNodeId,
     type: 'trigger',
     position: { x: 250, y: 50 },
     data: {
-      label: 'Gatilho: Mudança de Status',
-      config: triggerConfig || { status_from: '', status_to: '' },
+      label: triggerLabel,
+      config: triggerConfig || { trigger_tipo: '', status_from: '', status_to: '' },
       ordem: 0,
-      valid: Boolean(triggerConfig?.status_to),
-      errors: triggerConfig?.status_to ? [] : ['status_to é obrigatório'],
+      valid: triggerValid,
+      errors: triggerErrors,
     },
     draggable: false,
     selectable: true,
@@ -495,10 +507,11 @@ export function getTriggerConfig(nodes) {
   const triggerNode = nodes.find(node => node.type === 'trigger')
 
   if (!triggerNode) {
-    return { status_from: null, status_to: '' }
+    return { trigger_tipo: '', status_from: null, status_to: '' }
   }
 
   return {
+    trigger_tipo: triggerNode.data?.config?.trigger_tipo || '',
     status_from: triggerNode.data?.config?.status_from || null,
     status_to: triggerNode.data?.config?.status_to || '',
   }
@@ -517,8 +530,13 @@ export function validateFlowForExport(nodes, edges) {
   const triggerNode = nodes.find(n => n.type === 'trigger')
   if (!triggerNode) {
     errors.push('Fluxo deve ter um gatilho')
-  } else if (!triggerNode.data?.config?.status_to) {
-    errors.push('Gatilho deve ter status de destino configurado')
+  } else {
+    const tTipo = triggerNode.data?.config?.trigger_tipo
+    if (!tTipo) {
+      errors.push('Gatilho deve ter um tipo selecionado')
+    } else if (tTipo === 'order_status_change' && !triggerNode.data?.config?.status_to) {
+      errors.push('Gatilho deve ter status de destino configurado')
+    }
   }
 
   // Must have at least one action
@@ -574,12 +592,15 @@ export function generateFluxoPayload({
   const triggerConfig = getTriggerConfig(nodes)
   const acoes = convertNodesToAcoes(nodes, edges)
 
+  // Extract trigger_tipo from triggerConfig, send only status fields in trigger_config
+  const { trigger_tipo, ...triggerConfigFields } = triggerConfig
+
   return {
     fluxo: {
       nome: nome || 'Novo Fluxo',
       descricao: descricao || null,
-      trigger_tipo: 'order_status_change',
-      trigger_config: triggerConfig,
+      trigger_tipo: trigger_tipo || 'order_status_change',
+      trigger_config: triggerConfigFields,
       ativo: ativo,
       permitir_reentrada: permitir_reentrada,
       intervalo_reentrada_dias: intervalo_reentrada_dias,
@@ -609,7 +630,11 @@ export function generateUpdatePayload({
 
   if (nome !== undefined) fluxoUpdate.nome = nome
   if (descricao !== undefined) fluxoUpdate.descricao = descricao
-  if (triggerConfig) fluxoUpdate.trigger_config = triggerConfig
+  if (triggerConfig) {
+    const { trigger_tipo, ...triggerConfigFields } = triggerConfig
+    fluxoUpdate.trigger_config = triggerConfigFields
+    if (trigger_tipo) fluxoUpdate.trigger_tipo = trigger_tipo
+  }
   if (ativo !== undefined) fluxoUpdate.ativo = ativo
   if (permitir_reentrada !== undefined) fluxoUpdate.permitir_reentrada = permitir_reentrada
   if (intervalo_reentrada_dias !== undefined) fluxoUpdate.intervalo_reentrada_dias = intervalo_reentrada_dias

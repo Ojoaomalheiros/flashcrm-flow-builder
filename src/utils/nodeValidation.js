@@ -112,10 +112,25 @@ export function validateNodeConfig(type, config) {
 function validateTriggerConfig(config) {
   const errors = []
 
+  if (!config.trigger_tipo) {
+    errors.push({
+      field: 'trigger_tipo',
+      message: 'Tipo de gatilho nao selecionado',
+      code: 'REQUIRED_FIELD',
+    })
+    return { valid: false, errors }
+  }
+
+  // carrinho_abandonado needs no additional config
+  if (config.trigger_tipo === 'carrinho_abandonado') {
+    return { valid: true, errors: [] }
+  }
+
+  // order_status_change validation
   if (!config.status_to) {
     errors.push({
       field: 'status_to',
-      message: 'Status de destino é obrigatório',
+      message: 'Status de destino e obrigatorio',
       code: 'REQUIRED_FIELD',
     })
   }
@@ -123,7 +138,7 @@ function validateTriggerConfig(config) {
   if (config.status_from && config.status_to && config.status_from === config.status_to) {
     errors.push({
       field: 'status_from',
-      message: 'Status de origem não pode ser igual ao de destino',
+      message: 'Status de origem nao pode ser igual ao de destino',
       code: 'INVALID_VALUE',
     })
   }
