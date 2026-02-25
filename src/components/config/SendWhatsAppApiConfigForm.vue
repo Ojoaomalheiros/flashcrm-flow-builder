@@ -24,7 +24,7 @@
 
     <!-- Template Info Badges -->
     <div v-if="selectedTemplate" class="template-badges">
-      <span class="badge" :class="categoryClass">{{ selectedTemplate.category }}</span>
+      <span class="badge" :class="categoryClass">{{ categoryLabel }}</span>
     </div>
 
     <!-- Template Body Preview -->
@@ -75,13 +75,21 @@ const selectedTemplate = computed(() => {
   return approvedTemplates.value.find(t => t.name === selectedTemplateName.value) || null
 })
 
-// Category badge class
+// Category badge class and label (translated to PT-BR)
+const CATEGORY_MAP = {
+  marketing: { class: 'badge-marketing', label: 'Marketing' },
+  utility: { class: 'badge-utility', label: 'Utilidade' },
+  authentication: { class: 'badge-auth', label: 'Autenticacao' },
+}
+
 const categoryClass = computed(() => {
   const cat = selectedTemplate.value?.category?.toLowerCase()
-  if (cat === 'marketing') return 'badge-marketing'
-  if (cat === 'utility') return 'badge-utility'
-  if (cat === 'authentication') return 'badge-auth'
-  return 'badge-default'
+  return CATEGORY_MAP[cat]?.class || 'badge-default'
+})
+
+const categoryLabel = computed(() => {
+  const cat = selectedTemplate.value?.category?.toLowerCase()
+  return CATEGORY_MAP[cat]?.label || selectedTemplate.value?.category || ''
 })
 
 // Highlighted body text (replace {{N}} with styled spans)
@@ -158,8 +166,8 @@ const handleUpdate = () => {
 
 .form-select:focus {
   outline: none;
-  border-color: #25D366;
-  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
 .form-select.error {
@@ -254,7 +262,7 @@ const handleUpdate = () => {
 }
 
 .btn-save {
-  background: #25D366;
+  background: #7c3aed;
   color: #ffffff;
   padding: 10px 20px;
   border-radius: 6px;
@@ -266,7 +274,7 @@ const handleUpdate = () => {
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #1da851;
+  background: #6d28d9;
 }
 
 .btn-save:disabled {
