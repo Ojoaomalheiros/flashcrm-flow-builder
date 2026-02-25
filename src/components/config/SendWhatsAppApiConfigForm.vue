@@ -25,9 +25,6 @@
     <!-- Template Info Badges -->
     <div v-if="selectedTemplate" class="template-badges">
       <span class="badge" :class="categoryClass">{{ selectedTemplate.category }}</span>
-      <span v-if="selectedTemplate.parameter_count > 0" class="badge badge-params">
-        {{ selectedTemplate.parameter_count }} {{ selectedTemplate.parameter_count === 1 ? 'parametro' : 'parametros' }}
-      </span>
     </div>
 
     <!-- Template Body Preview -->
@@ -208,12 +205,6 @@ const handleUpdate = () => {
   background: #f3f4f6;
   color: #374151;
   border: 1px solid #d1d5db;
-}
-
-.badge-params {
-  background: #f5f3ff;
-  color: #5b21b6;
-  border: 1px solid #c4b5fd;
 }
 
 /* Template Preview */
