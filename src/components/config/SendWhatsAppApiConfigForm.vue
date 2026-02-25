@@ -25,7 +25,6 @@
     <!-- Template Info Badges -->
     <div v-if="selectedTemplate" class="template-badges">
       <span class="badge" :class="categoryClass">{{ selectedTemplate.category }}</span>
-      <span class="badge badge-language">{{ selectedTemplate.language }}</span>
       <span v-if="selectedTemplate.parameter_count > 0" class="badge badge-params">
         {{ selectedTemplate.parameter_count }} {{ selectedTemplate.parameter_count === 1 ? 'parametro' : 'parametros' }}
       </span>
@@ -35,34 +34,6 @@
     <div v-if="selectedTemplate" class="template-preview">
       <h4 class="preview-label">Preview do Template</h4>
       <div class="preview-content" v-html="highlightedBody"></div>
-    </div>
-
-    <!-- Parameter Mapping -->
-    <div v-if="selectedTemplate && selectedTemplate.parameter_count > 0" class="form-group">
-      <label class="form-label">Mapeamento de Parametros</label>
-      <p class="form-hint">Associe cada parametro do template a uma variavel dinamica.</p>
-
-      <div
-        v-for="paramIndex in selectedTemplate.parameter_count"
-        :key="paramIndex"
-        class="param-row"
-      >
-        <span class="param-label">{{ paramLabel(paramIndex) }}</span>
-        <select
-          v-model="localParams[String(paramIndex)]"
-          class="form-select param-select"
-          :class="{ error: !localParams[String(paramIndex)] }"
-        >
-          <option value="">Selecione...</option>
-          <option
-            v-for="variable in dynamicVariables"
-            :key="variable.value"
-            :value="variable.value"
-          >
-            {{ variable.label }}
-          </option>
-        </select>
-      </div>
     </div>
 
     <!-- Save Button -->
@@ -95,24 +66,6 @@ const props = defineProps({
 const emit = defineEmits(['update', 'close'])
 
 const selectedTemplateName = ref('')
-const localParams = ref({})
-
-// Format param label without nested curly braces in template
-const paramLabel = (index) => `\u007B\u007B${index}\u007D\u007D`
-
-// Dynamic variables available for parameter mapping
-const dynamicVariables = [
-  { value: '{{nome_cliente}}', label: 'Nome do Cliente' },
-  { value: '{{telefone_cliente}}', label: 'Telefone do Cliente' },
-  { value: '{{email_cliente}}', label: 'Email do Cliente' },
-  { value: '{{pedido_numero}}', label: 'Numero do Pedido' },
-  { value: '{{pedido_valor}}', label: 'Valor do Pedido' },
-  { value: '{{pedido_status}}', label: 'Status do Pedido' },
-  { value: '{{cashback_valor}}', label: 'Valor do Cashback' },
-  { value: '{{cashback_vencimento}}', label: 'Vencimento do Cashback' },
-  { value: '{{nome_loja}}', label: 'Nome da Loja' },
-  { value: '{{cupom_codigo}}', label: 'Codigo do Cupom' },
-]
 
 // Filter only APPROVED templates
 const approvedTemplates = computed(() => {
@@ -147,14 +100,6 @@ const highlightedBody = computed(() => {
 const isValid = computed(() => {
   if (!selectedTemplateName.value) return false
   if (!selectedTemplate.value) return false
-
-  // If template has parameters, all must be mapped
-  if (selectedTemplate.value.parameter_count > 0) {
-    for (let i = 1; i <= selectedTemplate.value.parameter_count; i++) {
-      if (!localParams.value[String(i)]) return false
-    }
-  }
-
   return true
 })
 
@@ -162,28 +107,13 @@ const isValid = computed(() => {
 watch(() => props.config, (newConfig) => {
   if (newConfig) {
     selectedTemplateName.value = newConfig.meta_template_name || ''
-    localParams.value = { ...(newConfig.template_params || {}) }
   }
 }, { immediate: true, deep: true })
-
-// Reset params when template changes
-watch(selectedTemplateName, (newName, oldName) => {
-  if (newName !== oldName) {
-    // Only reset if switching to a different template
-    const prevConfig = props.config
-    if (prevConfig?.meta_template_name !== newName) {
-      localParams.value = {}
-    }
-  }
-})
 
 const handleUpdate = () => {
   const config = {
     meta_template_name: selectedTemplateName.value,
     meta_template_language: selectedTemplate.value?.language || 'pt_BR',
-    template_params: selectedTemplate.value?.parameter_count > 0
-      ? { ...localParams.value }
-      : {},
   }
   emit('update', config)
   emit('close')
@@ -212,12 +142,6 @@ const handleUpdate = () => {
 .form-label .required {
   color: #dc2626;
   margin-left: 2px;
-}
-
-.form-hint {
-  font-size: 11px;
-  color: #6b7280;
-  margin: 0 0 8px 0;
 }
 
 .form-select {
@@ -286,12 +210,6 @@ const handleUpdate = () => {
   border: 1px solid #d1d5db;
 }
 
-.badge-language {
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #86efac;
-}
-
 .badge-params {
   background: #f5f3ff;
   color: #5b21b6;
@@ -333,30 +251,6 @@ const handleUpdate = () => {
   border-radius: 3px;
   font-weight: 600;
   font-size: 12px;
-}
-
-/* Parameter Mapping */
-.param-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.param-label {
-  min-width: 44px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1d4ed8;
-  background: #dbeafe;
-  padding: 4px 8px;
-  border-radius: 4px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.param-select {
-  flex: 1;
 }
 
 /* Form Actions */

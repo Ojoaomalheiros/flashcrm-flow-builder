@@ -214,11 +214,10 @@ function formatConfigForDatabase(nodeType, config) {
       }
 
     case 'send_whatsapp_api':
-      // Meta Cloud API config: { meta_template_name, meta_template_language, template_params }
+      // Meta Cloud API config: { meta_template_name, meta_template_language }
       return {
         meta_template_name: config.meta_template_name || null,
         meta_template_language: config.meta_template_language || 'pt_BR',
-        template_params: config.template_params || {},
       }
 
     case 'delay':
