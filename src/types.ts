@@ -16,6 +16,7 @@ export type NodeType =
   | 'trigger'
   | 'send_sms'
   | 'send_whatsapp'
+  | 'send_whatsapp_api'
   | 'send_email'
   | 'delay'
   | 'condition'
@@ -54,6 +55,7 @@ export interface TriggerConfig {
 export type AcaoConfig =
   | SendSMSConfig
   | SendWhatsAppConfig
+  | SendWhatsAppApiConfig
   | SendEmailConfig
   | DelayConfig
   | ConditionConfig
@@ -71,6 +73,25 @@ export interface SendWhatsAppConfig {
   mensagem?: string
   variaveis?: Record<string, string>
   media_url?: string
+}
+
+export interface SendWhatsAppApiConfig {
+  meta_template_name?: string
+  meta_template_language?: string
+  template_params?: Record<string, string> // {"1": "{{nome_cliente}}", "2": "{{pedido_valor}}"}
+}
+
+export interface MetaTemplate {
+  id: number
+  name: string
+  language: string
+  category: string
+  status: string
+  body_text: string
+  header_type?: string
+  header_text?: string
+  footer_text?: string
+  parameter_count: number
 }
 
 export interface SendEmailConfig {
@@ -228,6 +249,7 @@ export interface NodeTypeConfig {
 export interface NodeTypeConfigMap {
   send_sms: NodeTypeConfig
   send_whatsapp: NodeTypeConfig
+  send_whatsapp_api: NodeTypeConfig
   send_email: NodeTypeConfig
   delay: NodeTypeConfig
   condition: NodeTypeConfig

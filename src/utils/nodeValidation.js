@@ -83,6 +83,8 @@ export function validateNodeConfig(type, config) {
       return validateSendSMSConfig(config)
     case 'send_whatsapp':
       return validateSendWhatsAppConfig(config)
+    case 'send_whatsapp_api':
+      return validateSendWhatsAppApiConfig(config)
     case 'send_email':
       return validateSendEmailConfig(config)
     case 'delay':
@@ -252,6 +254,44 @@ function validateSendWhatsAppConfig(config) {
         errors.push({
           field: 'variaveis',
           message: `Variável ${variable} não mapeada`,
+          code: 'UNMAPPED_VARIABLE',
+        })
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors }
+}
+
+/**
+ * Valida Send WhatsApp API Config (Meta Cloud API)
+ */
+function validateSendWhatsAppApiConfig(config) {
+  const errors = []
+
+  if (!config.meta_template_name || config.meta_template_name.trim() === '') {
+    errors.push({
+      field: 'meta_template_name',
+      message: 'Template Meta e obrigatorio',
+      code: 'REQUIRED_FIELD',
+    })
+  }
+
+  if (!config.meta_template_language || config.meta_template_language.trim() === '') {
+    errors.push({
+      field: 'meta_template_language',
+      message: 'Idioma do template e obrigatorio',
+      code: 'REQUIRED_FIELD',
+    })
+  }
+
+  // If template_params exists and has entries, all values must be non-empty
+  if (config.template_params && Object.keys(config.template_params).length > 0) {
+    for (const [key, value] of Object.entries(config.template_params)) {
+      if (!value || value.trim() === '') {
+        errors.push({
+          field: `template_params.${key}`,
+          message: `Parametro {{${key}}} nao mapeado`,
           code: 'UNMAPPED_VARIABLE',
         })
       }

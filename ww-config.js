@@ -722,6 +722,47 @@ export default {
     },
 
     // ----------------------------------------
+    // WhatsApp API Templates (Meta Cloud API)
+    // ----------------------------------------
+    whatsappApiTemplates: {
+      label: { en: 'WhatsApp API Templates', pt: 'Templates WhatsApp API' },
+      type: 'Array',
+      section: 'settings',
+      bindable: true,
+      defaultValue: [],
+      options: {
+        expandable: true,
+        getItemLabel(item) {
+          return item?.name || `Template ${item?.id || 'Unknown'}`
+        },
+        item: {
+          type: 'Object',
+          defaultValue: { id: 1, name: '', language: 'pt_BR', category: 'MARKETING', status: 'APPROVED', body_text: '', parameter_count: 0 },
+          options: {
+            item: {
+              id: { label: { en: 'ID' }, type: 'Number' },
+              name: { label: { en: 'Name', pt: 'Nome' }, type: 'Text' },
+              language: { label: { en: 'Language', pt: 'Idioma' }, type: 'Text' },
+              category: { label: { en: 'Category', pt: 'Categoria' }, type: 'Text' },
+              status: { label: { en: 'Status' }, type: 'Text' },
+              body_text: { label: { en: 'Body Text', pt: 'Texto' }, type: 'Text' },
+              parameter_count: { label: { en: 'Parameters', pt: 'Parametros' }, type: 'Number' },
+            },
+          },
+        },
+      },
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'array',
+        tooltip: 'Bind to meta_whatsapp_templates collection. Required fields: id, name, language, category, status, body_text, parameter_count',
+      },
+      propertyHelp: {
+        tooltip: 'Meta WhatsApp Cloud API templates (APPROVED only will be shown). Bind to your meta_whatsapp_templates table.',
+      },
+      /* wwEditor:end */
+    },
+
+    // ----------------------------------------
     // Status Options
     // ----------------------------------------
     statusOptions: {

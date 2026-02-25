@@ -11,6 +11,7 @@
 const NODE_TYPE_TO_TIPO_ACAO = {
   'send_sms': 'send_sms',
   'send_whatsapp': 'send_whatsapp',
+  'send_whatsapp_api': 'send_whatsapp', // Maps to same DB type - distinguished by config content
   'send_email': 'send_email',
   'delay': 'delay',
   'condition': 'condition',
@@ -58,6 +59,7 @@ const NODE_LABELS = {
   trigger: 'Gatilho',
   send_sms: 'Enviar SMS',
   send_whatsapp: 'Enviar WhatsApp',
+  send_whatsapp_api: 'WhatsApp API',
   send_email: 'Enviar E-mail',
   delay: 'Aguardar',
   condition: 'Condição',
@@ -211,6 +213,14 @@ function formatConfigForDatabase(nodeType, config) {
         template_id: config.template_id || null,
       }
 
+    case 'send_whatsapp_api':
+      // Meta Cloud API config: { meta_template_name, meta_template_language, template_params }
+      return {
+        meta_template_name: config.meta_template_name || null,
+        meta_template_language: config.meta_template_language || 'pt_BR',
+        template_params: config.template_params || {},
+      }
+
     case 'delay':
       // DelayConfig: { quantidade: number, unidade: 'minutos' | 'horas' | 'dias' }
       return {
@@ -303,7 +313,11 @@ export function convertAcoesToNodes(acoes, triggerConfig, primeiraAcaoId = null)
     const nodeId = `node_${acao.id}`
     idToNodeId.set(acao.id, nodeId)
 
-    const nodeType = acao.tipo_acao
+    // Detect send_whatsapp with meta_template_name -> use send_whatsapp_api node type
+    let nodeType = acao.tipo_acao
+    if (nodeType === 'send_whatsapp' && acao.config?.meta_template_name) {
+      nodeType = 'send_whatsapp_api'
+    }
     const nodeConfig = formatConfigForNode(nodeType, acao.config)
 
     nodes.push({
@@ -457,6 +471,13 @@ function formatConfigForNode(nodeType, config) {
   if (!config) return {}
 
   switch (nodeType) {
+    case 'send_whatsapp_api':
+      return {
+        meta_template_name: config.meta_template_name || '',
+        meta_template_language: config.meta_template_language || 'pt_BR',
+        template_params: config.template_params || {},
+      }
+
     case 'send_sms':
     case 'send_whatsapp':
     case 'send_email':
