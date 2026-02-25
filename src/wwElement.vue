@@ -730,15 +730,12 @@ const whatsappApiTemplates = computed(() => {
   if (Array.isArray(bound) && bound.length > 0) {
     return bound
   }
-  // Fallback: try from meta_whatsapp_templates collection
+  // Fallback: try from meta_whatsapp_templates collection (hardcoded ID)
   try {
     const collections = wwLib.$store.getters['data/getCollections']
-    // Look for any collection that has meta template data
-    for (const [, col] of Object.entries(collections || {})) {
-      const data = col?.data
-      if (Array.isArray(data) && data.length > 0 && data[0]?.body_text !== undefined && data[0]?.parameter_count !== undefined) {
-        return data
-      }
+    const data = collections?.['d9e3550d-e939-417e-9ff9-c6ffdf960e4c']?.data
+    if (Array.isArray(data) && data.length > 0) {
+      return data
     }
   } catch (e) {
     // silent

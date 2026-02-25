@@ -59,7 +59,7 @@ const NODE_LABELS = {
   trigger: 'Gatilho',
   send_sms: 'Enviar SMS',
   send_whatsapp: 'Enviar WhatsApp',
-  send_whatsapp_api: 'WhatsApp API',
+  send_whatsapp_api: 'Enviar WhatsApp API',
   send_email: 'Enviar E-mail',
   delay: 'Aguardar',
   condition: 'Condição',

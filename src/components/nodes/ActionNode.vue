@@ -107,7 +107,7 @@ const nodeTypeConfig = {
     gradient: '#10b981',
   },
   send_whatsapp_api: {
-    label: 'WhatsApp API',
+    label: 'Enviar WhatsApp API',
     color: '#25D366',
     gradient: '#25D366',
   },
