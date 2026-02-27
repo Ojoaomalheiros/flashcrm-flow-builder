@@ -258,6 +258,12 @@ const availableVariables = [
   { value: '{{data_ativacao}}', label: 'Data de Ativacao', category: 'Cashback' },
   { value: '{{compra_minima}}', label: 'Compra Minima', category: 'Cashback' },
   { value: '{{desconto_max}}', label: 'Desconto Maximo', category: 'Cashback' },
+  // Carrinho Abandonado
+  { value: '{{carrinho_total}}', label: 'Total do Carrinho', category: 'Carrinho Abandonado' },
+  { value: '{{carrinho_url}}', label: 'Link de Recuperacao', category: 'Carrinho Abandonado' },
+  { value: '{{carrinho_qtd_itens}}', label: 'Qtd Itens', category: 'Carrinho Abandonado' },
+  { value: '{{produtos_carrinho}}', label: 'Lista de Produtos', category: 'Carrinho Abandonado' },
+  { value: '{{carrinho_frete}}', label: 'Frete', category: 'Carrinho Abandonado' },
 ]
 
 const groupedVariables = computed(() => {
