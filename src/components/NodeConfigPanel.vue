@@ -231,10 +231,6 @@ const handleDelete = () => {
   background: #fafafa;
   border-radius: 0;
   box-shadow: none;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
   border-left: 1px solid #e5e7eb;
 }
 
@@ -301,8 +297,6 @@ const handleDelete = () => {
 }
 
 .panel-content {
-  flex: 1;
-  overflow-y: auto;
   padding: 20px;
   background: #fafafa;
 }

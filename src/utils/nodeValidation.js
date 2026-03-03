@@ -123,26 +123,57 @@ function validateTriggerConfig(config) {
     return { valid: false, errors }
   }
 
-  // carrinho_abandonado needs no additional config
-  if (config.trigger_tipo === 'carrinho_abandonado') {
-    return { valid: true, errors: [] }
-  }
+  switch (config.trigger_tipo) {
+    case 'carrinho_abandonado':
+      // No additional config needed
+      return { valid: true, errors: [] }
 
-  // order_status_change validation
-  if (!config.status_to) {
-    errors.push({
-      field: 'status_to',
-      message: 'Status de destino e obrigatorio',
-      code: 'REQUIRED_FIELD',
-    })
-  }
+    case 'aniversario':
+      // offset_dias defaults to 0, always valid
+      return { valid: true, errors: [] }
 
-  if (config.status_from && config.status_to && config.status_from === config.status_to) {
-    errors.push({
-      field: 'status_from',
-      message: 'Status de origem nao pode ser igual ao de destino',
-      code: 'INVALID_VALUE',
-    })
+    case 'rfm_mudanca_faixa':
+      // All fields optional
+      return { valid: true, errors: [] }
+
+    case 'pedido_entrega':
+      if (!config.subtipo) {
+        errors.push({
+          field: 'subtipo',
+          message: 'Tipo de evento de entrega e obrigatorio',
+          code: 'REQUIRED_FIELD',
+        })
+      } else {
+        const validSubtipos = ['status_entrega_alterado', 'url_rastreio_criada']
+        if (!validSubtipos.includes(config.subtipo)) {
+          errors.push({
+            field: 'subtipo',
+            message: 'Tipo de evento de entrega invalido',
+            code: 'INVALID_VALUE',
+          })
+        }
+      }
+      break
+
+    case 'order_status_change':
+    default:
+      // order_status_change validation
+      if (!config.status_to) {
+        errors.push({
+          field: 'status_to',
+          message: 'Status de destino e obrigatorio',
+          code: 'REQUIRED_FIELD',
+        })
+      }
+
+      if (config.status_from && config.status_to && config.status_from === config.status_to) {
+        errors.push({
+          field: 'status_from',
+          message: 'Status de origem nao pode ser igual ao de destino',
+          code: 'INVALID_VALUE',
+        })
+      }
+      break
   }
 
   return { valid: errors.length === 0, errors }
@@ -397,9 +428,11 @@ function validateConditionConfig(config) {
 
   // Validar field - v2 com campos reduzidos + segmentação + dados demográficos
   const validFields = [
-    // Pedido (5)
+    // Pedido (5 + 5 entrega/rastreio)
     'pedido.valor', 'pedido.quantidade_itens',
     'pedido.status_flash', 'pedido.cupom', 'pedido.loja_id',
+    'pedido.codigo_rastreio', 'pedido.url_rastreio',
+    'pedido.transportadora', 'pedido.data_envio', 'pedido.data_entrega',
     // Cashback (3)
     'cashback.valor', 'cashback.status', 'cashback.compra_minima',
     // Cliente (9)
@@ -410,7 +443,11 @@ function validateConditionConfig(config) {
     // Produto (2)
     'produto.nome', 'produto.categoria_nome',
     // Variação (2)
-    'variacao.cor', 'variacao.tamanho'
+    'variacao.cor', 'variacao.tamanho',
+    // RFM (2)
+    'rfm.segmento_anterior', 'rfm.segmento_novo',
+    // Aniversario (1)
+    'aniversario.idade',
   ]
 
   if (!config.condicao.field) {
@@ -902,8 +939,16 @@ export function checkExportReadiness(nodes, edges) {
   const triggerNode = nodes.find(n => n.type === 'trigger')
   if (!triggerNode) {
     issues.push('Fluxo deve ter um gatilho')
-  } else if (!triggerNode.data?.config?.status_to) {
-    issues.push('Gatilho deve ter status de destino configurado')
+  } else {
+    const tConfig = triggerNode.data?.config
+    const tTipo = tConfig?.trigger_tipo
+    if (!tTipo) {
+      issues.push('Gatilho deve ter um tipo selecionado')
+    } else if (tTipo === 'order_status_change' && !tConfig?.status_to) {
+      issues.push('Gatilho deve ter status de destino configurado')
+    } else if (tTipo === 'pedido_entrega' && !tConfig?.subtipo) {
+      issues.push('Gatilho de entrega deve ter tipo de evento selecionado')
+    }
   }
 
   // Must have at least one action

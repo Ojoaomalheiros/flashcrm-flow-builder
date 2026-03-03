@@ -266,16 +266,41 @@ export function convertAcoesToNodes(acoes, triggerConfig, primeiraAcaoId = null)
   // Add trigger node first
   const triggerNodeId = 'trigger_1'
   const triggerTipo = triggerConfig?.trigger_tipo || ''
-  const isCarrinho = triggerTipo === 'carrinho_abandonado'
-  const triggerLabel = isCarrinho
-    ? 'Gatilho: Carrinho Abandonado'
-    : 'Gatilho: Mudanca de Status'
-  const triggerValid = isCarrinho
-    ? true
-    : Boolean(triggerConfig?.status_to)
-  const triggerErrors = triggerValid
-    ? []
-    : (triggerTipo ? ['status_to e obrigatorio'] : ['Tipo de gatilho nao selecionado'])
+
+  // Determine trigger label based on type
+  const TRIGGER_LABELS = {
+    order_status_change: 'Gatilho: Mudanca de Status',
+    carrinho_abandonado: 'Gatilho: Carrinho Abandonado',
+    aniversario: 'Gatilho: Aniversario',
+    pedido_entrega: 'Gatilho: Entrega/Rastreio',
+    rfm_mudanca_faixa: 'Gatilho: Mudanca RFM',
+  }
+  const triggerLabel = TRIGGER_LABELS[triggerTipo] || 'Gatilho: Mudanca de Status'
+
+  // Determine trigger validity based on type
+  let triggerValid = false
+  if (!triggerTipo) {
+    triggerValid = false
+  } else if (triggerTipo === 'carrinho_abandonado' || triggerTipo === 'aniversario' || triggerTipo === 'rfm_mudanca_faixa') {
+    triggerValid = true
+  } else if (triggerTipo === 'pedido_entrega') {
+    triggerValid = Boolean(triggerConfig?.subtipo)
+  } else if (triggerTipo === 'order_status_change') {
+    triggerValid = Boolean(triggerConfig?.status_to)
+  } else {
+    triggerValid = Boolean(triggerConfig?.status_to)
+  }
+
+  let triggerErrors = []
+  if (!triggerValid) {
+    if (!triggerTipo) {
+      triggerErrors = ['Tipo de gatilho nao selecionado']
+    } else if (triggerTipo === 'pedido_entrega') {
+      triggerErrors = ['Tipo de evento de entrega obrigatorio']
+    } else {
+      triggerErrors = ['status_to e obrigatorio']
+    }
+  }
 
   nodes.push({
     id: triggerNodeId,
@@ -530,11 +555,50 @@ export function getTriggerConfig(nodes) {
     return { trigger_tipo: '', status_from: null, status_to: '' }
   }
 
-  return {
-    trigger_tipo: triggerNode.data?.config?.trigger_tipo || '',
-    status_from: triggerNode.data?.config?.status_from || null,
-    status_to: triggerNode.data?.config?.status_to || '',
+  const config = triggerNode.data?.config || {}
+  const tipo = config.trigger_tipo || ''
+
+  // Base config always present
+  const result = {
+    trigger_tipo: tipo,
   }
+
+  // Add type-specific fields
+  switch (tipo) {
+    case 'order_status_change':
+      result.status_from = config.status_from || null
+      result.status_to = config.status_to || ''
+      break
+
+    case 'carrinho_abandonado':
+      // No additional config needed
+      break
+
+    case 'aniversario':
+      result.offset_dias = config.offset_dias ?? 0
+      break
+
+    case 'pedido_entrega':
+      result.subtipo = config.subtipo || ''
+      if (config.status_entrega_to) {
+        result.status_entrega_to = config.status_entrega_to
+      }
+      break
+
+    case 'rfm_mudanca_faixa':
+      if (config.direcao) result.direcao = config.direcao
+      if (config.segmento_from) result.segmento_from = config.segmento_from
+      if (config.segmento_to) result.segmento_to = config.segmento_to
+      break
+
+    default:
+      // Legacy fallback
+      result.status_from = config.status_from || null
+      result.status_to = config.status_to || ''
+      break
+  }
+
+  return result
 }
 
 /**
@@ -556,7 +620,10 @@ export function validateFlowForExport(nodes, edges) {
       errors.push('Gatilho deve ter um tipo selecionado')
     } else if (tTipo === 'order_status_change' && !triggerNode.data?.config?.status_to) {
       errors.push('Gatilho deve ter status de destino configurado')
+    } else if (tTipo === 'pedido_entrega' && !triggerNode.data?.config?.subtipo) {
+      errors.push('Gatilho de entrega deve ter tipo de evento selecionado')
     }
+    // aniversario, carrinho_abandonado, rfm_mudanca_faixa are always valid once type is selected
   }
 
   // Must have at least one action
@@ -606,14 +673,25 @@ export function generateFluxoPayload({
   nodes,
   edges,
   ativo = false,
-  permitir_reentrada = false,
-  intervalo_reentrada_dias = null,
+  permitir_reentrada,
+  intervalo_reentrada_dias,
 }) {
   const triggerConfig = getTriggerConfig(nodes)
   const acoes = convertNodesToAcoes(nodes, edges)
 
-  // Extract trigger_tipo from triggerConfig, send only status fields in trigger_config
+  // Extract trigger_tipo from triggerConfig, send only config fields in trigger_config
   const { trigger_tipo, ...triggerConfigFields } = triggerConfig
+
+  // Extract permitir_reentrada and intervalo_reentrada_dias from trigger node config
+  // if not provided as top-level params (they are stored by TriggerConfigForm in the node)
+  const triggerNode = nodes.find(n => n.type === 'trigger')
+  const triggerNodeConfig = triggerNode?.data?.config || {}
+  const finalPermitirReentrada = permitir_reentrada !== undefined
+    ? permitir_reentrada
+    : (triggerNodeConfig.permitir_reentrada || false)
+  const finalIntervaloReentrada = intervalo_reentrada_dias !== undefined
+    ? intervalo_reentrada_dias
+    : (triggerNodeConfig.intervalo_reentrada_dias ?? null)
 
   return {
     fluxo: {
@@ -622,8 +700,8 @@ export function generateFluxoPayload({
       trigger_tipo: trigger_tipo || 'order_status_change',
       trigger_config: triggerConfigFields,
       ativo: ativo,
-      permitir_reentrada: permitir_reentrada,
-      intervalo_reentrada_dias: intervalo_reentrada_dias,
+      permitir_reentrada: finalPermitirReentrada,
+      intervalo_reentrada_dias: finalIntervaloReentrada,
     },
     acoes,
   }

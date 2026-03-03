@@ -365,6 +365,7 @@
         </div>
       </div>
     </transition>
+
   </div>
 </template>
 
@@ -404,6 +405,7 @@ import {
 const vueFlowLoaded = ref(true) // Already loaded via npm imports
 const vueFlowError = ref(null)
 
+
 // Store dagre reference
 const dagreLib = dagre
 
@@ -412,18 +414,6 @@ if (typeof window !== 'undefined') {
   window.__vueFlowHandle = Handle
   window.__vueFlowPosition = Position
 }
-
-// Log successful initialization
-console.log('[FLOW-BUILDER] Vue Flow loaded via npm (bundled with WeWeb Vue instance)')
-console.log('[FLOW-BUILDER] Components available:', {
-  VueFlow: !!VueFlowComponent,
-  Background: !!BackgroundComponent,
-  Controls: !!ControlsComponent,
-  MiniMap: !!MiniMapComponent,
-  Handle: !!Handle,
-  Position: !!Position,
-  Dagre: !!dagreLib
-})
 
 // Computed aliases for template (now just returning the imported components directly)
 const VueFlow = computed(() => VueFlowComponent)
@@ -743,10 +733,8 @@ const whatsappApiTemplates = computed(() => {
   return []
 })
 
-// Wrapper style (includes config panel)
-const wrapperStyle = computed(() => ({
-  // Styles now handled by CSS class for full-page layout
-}))
+// Wrapper style
+const wrapperStyle = computed(() => ({}))
 
 // Container style
 const containerStyle = computed(() => ({
@@ -1071,7 +1059,6 @@ const applyAutoLayout = (shouldFitView = false) => {
     setTimeout(() => {
       // Find the trigger node to center on it
       const triggerNode = nodes.value.find(n => n.type === 'trigger')
-      console.log('[FLOW-BUILDER] applyAutoLayout - triggerNode position:', triggerNode?.position)
 
       if (triggerNode) {
         // Get canvas container dimensions using WeWeb's document
@@ -1083,8 +1070,6 @@ const applyAutoLayout = (shouldFitView = false) => {
         const containerWidth = container?.clientWidth || 800
         const containerHeight = container?.clientHeight || 600
 
-        console.log('[FLOW-BUILDER] Container found:', !!container, 'dimensions:', containerWidth, 'x', containerHeight)
-
         // Calculate viewport position to center trigger horizontally
         const triggerWidth = getNodeWidth(triggerNode)
         const triggerCenterX = triggerNode.position.x + triggerWidth / 2
@@ -1094,20 +1079,11 @@ const applyAutoLayout = (shouldFitView = false) => {
         // Viewport Y: 80px from top, accounting for trigger position
         const viewportY = 80 - triggerNode.position.y
 
-        console.log('[FLOW-BUILDER] Trigger center X:', triggerCenterX, 'triggerWidth:', triggerWidth)
-        console.log('[FLOW-BUILDER] Setting viewport:', { x: viewportX, y: viewportY, zoom: 1 })
-
         // Try setViewport first
         setViewport({ x: viewportX, y: viewportY, zoom: 1 }, { duration: 300 })
 
-        // Verify it was applied after a short delay
-        setTimeout(() => {
-          const currentViewport = getViewport()
-          console.log('[FLOW-BUILDER] Current viewport after setViewport:', currentViewport)
-        }, 400)
       } else {
         // Fallback to fitView if no trigger
-        console.log('[FLOW-BUILDER] No trigger found, using fitView')
         fitView({ duration: 300, padding: 0.2, maxZoom: 1 })
       }
     }, 100)
@@ -1354,25 +1330,17 @@ const handleSelectNodeTypeFromMenu = (nodeType) => {
 // ============================================
 
 const runValidation = () => {
-  console.log('[FLOW-BUILDER] runValidation() chamado')
   const errors = []
 
   // Validate flow structure
   const structureValid = validateFlowStructure(nodes.value, edges.value)
-  console.log('[FLOW-BUILDER] validateFlowStructure:', structureValid)
   if (!structureValid) {
     errors.push({ field: 'structure', message: 'Estrutura do fluxo invalida', code: 'INVALID_STRUCTURE' })
   }
 
   // Validate each node config
-  console.log('[FLOW-BUILDER] Validando nodes:', nodes.value.length)
   nodes.value.forEach(node => {
     const validation = validateNodeConfig(node.type, node.data?.config || {})
-    console.log(`[FLOW-BUILDER] Node ${node.id} (${node.type}):`, {
-      config: node.data?.config,
-      valid: validation.valid,
-      errors: validation.errors
-    })
     node.data.valid = validation.valid
     node.data.errors = validation.errors.map(e => e.message)
     if (!validation.valid) {
@@ -1383,13 +1351,9 @@ const runValidation = () => {
   })
 
   // Must have at least trigger + 1 action
-  console.log('[FLOW-BUILDER] Total nodes:', nodes.value.length, '(min: 2)')
   if (nodes.value.length < 2) {
     errors.push({ field: 'nodes', message: 'Fluxo deve ter pelo menos uma acao alem do gatilho', code: 'MIN_NODES' })
   }
-
-  console.log('[FLOW-BUILDER] Total errors:', errors.length)
-  console.log('[FLOW-BUILDER] Errors:', errors)
 
   isFlowValid.value = errors.length === 0
   setIsValid(errors.length === 0)
@@ -1415,7 +1379,6 @@ const runValidation = () => {
 
 const handlePaneReady = () => {
   vueFlowReady.value = true
-  console.log('[FLOW-BUILDER] handlePaneReady called, vueFlowReady:', vueFlowReady.value)
 
   // Re-initialize useVueFlow composable now that the instance is ready
   // This ensures setViewport and other methods work correctly
@@ -1423,7 +1386,6 @@ const handlePaneReady = () => {
   const vfCore = win?.VueFlowCore || win?.VueFlow
   if (vfCore?.useVueFlow) {
     vueFlowComposable = vfCore.useVueFlow({ id: vueFlowId })
-    console.log('[FLOW-BUILDER] useVueFlow re-initialized on pane ready:', vueFlowComposable)
   }
 
   // Apply layout and fit view when pane is ready
@@ -1546,9 +1508,14 @@ const handleUpdateNodeConfig = ({ nodeId, config }) => {
 
     // Update trigger node label based on trigger_tipo
     if (nodes.value[nodeIndex].type === 'trigger' && config.trigger_tipo) {
-      nodes.value[nodeIndex].data.label = config.trigger_tipo === 'carrinho_abandonado'
-        ? 'Gatilho: Carrinho Abandonado'
-        : 'Gatilho: Mudanca de Status'
+      const triggerLabels = {
+        order_status_change: 'Gatilho: Mudanca de Status',
+        carrinho_abandonado: 'Gatilho: Carrinho Abandonado',
+        aniversario: 'Gatilho: Aniversario',
+        pedido_entrega: 'Gatilho: Entrega/Rastreio',
+        rfm_mudanca_faixa: 'Gatilho: Mudanca RFM',
+      }
+      nodes.value[nodeIndex].data.label = triggerLabels[config.trigger_tipo] || 'Gatilho: Mudanca de Status'
     }
 
     // Re-validate this node
@@ -1597,18 +1564,11 @@ const confirmBack = () => {
 
 // Handle save button click - shows confirmation modal
 const handleSave = () => {
-  console.log('[FLOW-BUILDER] Clique no botão salvar - validando...')
-
   // Run validation before showing modal
   runValidation()
 
   // Validate flow for export
   const exportValidation = validateFlowForExport(nodes.value, edges.value)
-
-  console.log('[FLOW-BUILDER] Validação:')
-  console.log('  - isFlowValid:', isFlowValid.value)
-  console.log('  - exportValidation.valid:', exportValidation.valid)
-  console.log('  - exportValidation.errors:', exportValidation.errors)
 
   // Check if flow is valid before showing modal
   if (!isFlowValid.value || !exportValidation.valid) {
@@ -1655,32 +1615,21 @@ const cancelSave = () => {
 
 // Confirm save - perform the actual save
 const confirmSave = async () => {
-  console.log('========================================')
-  console.log('[FLOW-BUILDER] Iniciando save...')
-  console.log('========================================')
-
   isSaving.value = true
 
   try {
     const currentEmpresaId = empresaId.value
 
     // Generate payload in the format expected by the RPC
-    console.log('[FLOW-BUILDER] Gerando payload...')
-    console.log('  - flowName:', flowName.value)
-
     const payload = generateFluxoPayload({
       nome: flowName.value || 'Novo Fluxo',
       descricao: '',
       nodes: nodes.value,
       edges: edges.value,
       ativo: false,
-      permitir_reentrada: false,
-      intervalo_reentrada_dias: null,
+      // permitir_reentrada and intervalo_reentrada_dias are extracted
+      // from the trigger node config by generateFluxoPayload
     })
-
-    console.log('[FLOW-BUILDER] Payload gerado:')
-    console.log('  - payload.fluxo:', payload.fluxo)
-    console.log('  - payload.acoes:', payload.acoes)
 
     // Add empresa_id to fluxo payload
     const fluxoPayload = {
@@ -1690,13 +1639,10 @@ const confirmSave = async () => {
 
     // If editing existing flow, add the id
     const fluxoId = loadedFluxoId.value || props.content?.fluxoId
-    console.log('[FLOW-BUILDER] fluxoId (para edição):', fluxoId)
 
     if (fluxoId) {
       fluxoPayload.id = fluxoId
     }
-
-    console.log('[FLOW-BUILDER] fluxoPayload final:', fluxoPayload)
 
     // Check Supabase plugin availability
     if (!wwLib?.wwPlugins?.supabase?.instance) {
@@ -1713,8 +1659,6 @@ const confirmSave = async () => {
     }
 
     // Call RPC function: salvar_fluxo_automacao
-    console.log('[FLOW-BUILDER] Chamando RPC salvar_fluxo_automacao...')
-
     const { data, error } = await wwLib.wwPlugins.supabase.instance.rpc(
       'salvar_fluxo_automacao',
       {
@@ -1722,10 +1666,6 @@ const confirmSave = async () => {
         p_acoes: payload.acoes,
       }
     )
-
-    console.log('[FLOW-BUILDER] Resposta RPC:')
-    console.log('  - data:', data)
-    console.log('  - error:', error)
 
     if (error) {
       console.error('[FLOW-BUILDER] Erro RPC:', error)
@@ -1742,9 +1682,6 @@ const confirmSave = async () => {
       })
       return
     }
-
-    // Success!
-    console.log('[FLOW-BUILDER] ✅ Fluxo salvo com sucesso!')
 
     // Update loadedFluxoId if this was a new flow
     if (!fluxoId && data?.fluxo?.id) {
@@ -1783,9 +1720,6 @@ const confirmSave = async () => {
     })
   } finally {
     isSaving.value = false
-    console.log('========================================')
-    console.log('[FLOW-BUILDER] Save finalizado')
-    console.log('========================================')
   }
 }
 
@@ -2083,7 +2017,6 @@ const loadFluxoFromDatabase = async (fluxoId) => {
     return false
   }
 
-  console.log('[FLOW-BUILDER] Carregando fluxo:', { fluxoId, empresaId: currentEmpresaId })
   setIsLoadingFlow(true)
 
   try {
@@ -2094,8 +2027,6 @@ const loadFluxoFromDatabase = async (fluxoId) => {
         p_empresa_id: currentEmpresaId,
       }
     )
-
-    console.log('[FLOW-BUILDER] Resposta buscar_fluxo_completo:', { data, error })
 
     if (error) {
       console.error('[FLOW-BUILDER] Erro ao carregar fluxo:', error)
@@ -2125,20 +2056,18 @@ const loadFluxoFromDatabase = async (fluxoId) => {
 
     // Convert database format to Vue Flow nodes/edges
     // Merge trigger_tipo from fluxo level into triggerConfig for the node
+    // Also include permitir_reentrada and intervalo_reentrada_dias for the form
     const triggerConfig = {
       trigger_tipo: data.fluxo?.trigger_tipo || 'order_status_change',
-      ...(data.fluxo?.trigger_config || { status_from: null, status_to: '' }),
+      ...(data.fluxo?.trigger_config || {}),
+      permitir_reentrada: data.fluxo?.permitir_reentrada || false,
+      intervalo_reentrada_dias: data.fluxo?.intervalo_reentrada_dias ?? null,
     }
     const { nodes: loadedNodes, edges: loadedEdges } = convertAcoesToNodes(
       data.acoes || [],
       triggerConfig,
       data.primeira_acao_id
     )
-
-    console.log('[FLOW-BUILDER] Nodes/Edges convertidos:', {
-      nodes: loadedNodes.length,
-      edges: loadedEdges.length
-    })
 
     // Enrich nodes with template data (nome, conteudo) from messageTemplates collection
     const templates = messageTemplates.value || []
@@ -2149,7 +2078,6 @@ const loadFluxoFromDatabase = async (fluxoId) => {
         if (templateId) {
           const template = templates.find(t => t.id === templateId)
           if (template) {
-            console.log(`[FLOW-BUILDER] Enriching node ${node.id} with template:`, template.nome)
             return {
               ...node,
               data: {
@@ -2177,7 +2105,6 @@ const loadFluxoFromDatabase = async (fluxoId) => {
     // Apply layout after setting nodes - wait for VueFlow to be ready
     setTimeout(() => {
       if (vueFlowReady.value) {
-        console.log('[FLOW-BUILDER] Applying auto layout after loading flow')
         applyAutoLayout(true)
       }
       runValidation()
@@ -2224,7 +2151,6 @@ onMounted(async () => {
   // Initialize useVueFlow composable (now imported directly from npm, no CDN loading needed)
   try {
     vueFlowComposable = useVueFlowComposable({ id: vueFlowId })
-    console.log('[FLOW-BUILDER] useVueFlow initialized with id:', vueFlowId, vueFlowComposable)
   } catch (error) {
     console.error('[FLOW-BUILDER] Failed to initialize Vue Flow composable:', error)
     vueFlowError.value = error.message
@@ -2247,7 +2173,6 @@ onMounted(async () => {
       collectionIds.map(id => wwLib.wwCollection.fetchCollection(id))
     )
 
-    console.log('[FLOW-BUILDER] Collections carregadas. empresaId:', empresaId.value)
   } catch (e) {
     console.warn('Failed to fetch collections:', e)
   }
@@ -2256,14 +2181,11 @@ onMounted(async () => {
   const fluxoIdFromUrl = getQueryParam('id')
 
   if (fluxoIdFromUrl) {
-    console.log('[FLOW-BUILDER] ID do fluxo encontrado na URL:', fluxoIdFromUrl)
-
     // Load existing flow from database
     const loaded = await loadFluxoFromDatabase(fluxoIdFromUrl)
 
     if (!loaded) {
       // If loading failed, initialize with default nodes
-      console.log('[FLOW-BUILDER] Falha ao carregar, inicializando com nodes padrão')
       nodes.value = processInitialNodes()
       edges.value = processInitialEdges()
       updateInternalVariables()
@@ -2272,14 +2194,12 @@ onMounted(async () => {
       // Apply layout after nodes are initialized
       setTimeout(() => {
         if (vueFlowReady.value) {
-          console.log('[FLOW-BUILDER] Applying auto layout after fallback init')
           applyAutoLayout(true)
         }
       }, 200)
     }
   } else {
     // No ID in URL, initialize with default nodes (new flow)
-    console.log('[FLOW-BUILDER] Novo fluxo - inicializando com nodes padrão')
     nodes.value = processInitialNodes()
     edges.value = processInitialEdges()
     updateInternalVariables()
@@ -2289,19 +2209,16 @@ onMounted(async () => {
     // Wait for VueFlow to be ready and nodes to be rendered
     setTimeout(() => {
       if (vueFlowReady.value) {
-        console.log('[FLOW-BUILDER] Applying auto layout after node initialization')
         applyAutoLayout(true)
       }
 
       // Auto-select trigger node after layout is applied
       setTimeout(() => {
         const triggerNode = nodes.value.find(n => n.type === 'trigger')
-        console.log('[FLOW-BUILDER] Auto-selecting trigger after init:', triggerNode)
         if (triggerNode) {
           currentSelectedNode.value = triggerNode
           setSelectedNodes([triggerNode])
           setSelectedNode(triggerNode)
-          console.log('[FLOW-BUILDER] Trigger node selected!')
         }
       }, 400)
     }, 200)
@@ -2782,7 +2699,7 @@ onBeforeUnmount(() => {
 
 /* Config Panel Right Side */
 .config-panel-right {
-  position: absolute;
+  position: fixed;
   right: 0;
   top: 73px;
   bottom: 0;
