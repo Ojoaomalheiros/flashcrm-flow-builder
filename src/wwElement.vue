@@ -1559,7 +1559,8 @@ const confirmBack = () => {
     event: {},
   })
   // Redirecionar para a página de automações
-  wwLib.goTo('/automacoes')
+  const goTo = wwLib.wwApp?.goTo || wwLib.goTo
+  goTo('/automacoes')
 }
 
 // Handle save button click - shows confirmation modal
@@ -1572,7 +1573,7 @@ const handleSave = () => {
 
   // Check if flow is valid before showing modal
   if (!isFlowValid.value || !exportValidation.valid) {
-    console.error('[FLOW-BUILDER] Fluxo inválido, não abrindo modal')
+    console.error('[FLOW-BUILDER] Fluxo inválido:', [...validationErrorsVar.value, ...exportValidation.errors])
     emit('trigger-event', {
       name: 'save',
       event: {
@@ -1590,7 +1591,7 @@ const handleSave = () => {
 
   // Check if empresaId is available
   if (!empresaId.value) {
-    console.error('[FLOW-BUILDER] empresaId não encontrado!')
+    console.error('[FLOW-BUILDER] empresaId não encontrado')
     emit('trigger-event', {
       name: 'save',
       event: {
@@ -1627,8 +1628,6 @@ const confirmSave = async () => {
       nodes: nodes.value,
       edges: edges.value,
       ativo: false,
-      // permitir_reentrada and intervalo_reentrada_dias are extracted
-      // from the trigger node config by generateFluxoPayload
     })
 
     // Add empresa_id to fluxo payload
@@ -1646,7 +1645,7 @@ const confirmSave = async () => {
 
     // Check Supabase plugin availability
     if (!wwLib?.wwPlugins?.supabase?.instance) {
-      console.error('[FLOW-BUILDER] Supabase plugin não encontrado!')
+      console.error('[FLOW-BUILDER] Supabase plugin não encontrado')
       emit('trigger-event', {
         name: 'save',
         event: {
@@ -1667,8 +1666,9 @@ const confirmSave = async () => {
       }
     )
 
+    // Check PostgREST error (HTTP-level)
     if (error) {
-      console.error('[FLOW-BUILDER] Erro RPC:', error)
+      console.error('[FLOW-BUILDER] Erro PostgREST:', error.message, '| code:', error.code, '| details:', error.details)
       emit('trigger-event', {
         name: 'save',
         event: {
@@ -1683,15 +1683,31 @@ const confirmSave = async () => {
       return
     }
 
+    // Check application-level success from the RPC function
+    if (data && data.success === false) {
+      console.error('[FLOW-BUILDER] Erro SQL:', data.error)
+      emit('trigger-event', {
+        name: 'save',
+        event: {
+          success: false,
+          error: data.error || 'Erro ao salvar fluxo no banco de dados',
+          isValid: true,
+        },
+      })
+      return
+    }
+
     // Update loadedFluxoId if this was a new flow
     if (!fluxoId && data?.fluxo?.id) {
       setLoadedFluxoId(data.fluxo.id)
     }
 
+    console.log('[FLOW-BUILDER] Fluxo salvo. ID:', data?.fluxo?.id, '| acoes:', data?.acoes?.length)
+
     emit('trigger-event', {
       name: 'save',
       event: {
-        success: data?.success ?? true,
+        success: true,
         message: data?.message || 'Fluxo salvo com sucesso!',
         fluxo: data?.fluxo,
         acoes: data?.acoes,
@@ -1702,14 +1718,14 @@ const confirmSave = async () => {
       },
     })
 
-    // Close modal on success
+    // Close modal and redirect only on confirmed success
     showSaveConfirm.value = false
 
-    // Redirecionar para a página de automações após salvar com sucesso
-    wwLib.goTo('/automacoes')
+    const goTo = wwLib.wwApp?.goTo || wwLib.goTo
+    goTo('/automacoes')
 
   } catch (err) {
-    console.error('[FLOW-BUILDER] ❌ Erro inesperado ao salvar:', err)
+    console.error('[FLOW-BUILDER] Erro inesperado ao salvar:', err?.message || err)
     emit('trigger-event', {
       name: 'save',
       event: {
@@ -2148,6 +2164,8 @@ const getQueryParam = (param) => {
 }
 
 onMounted(async () => {
+  console.log('[FLOW-BUILDER] Componente montado')
+
   // Initialize useVueFlow composable (now imported directly from npm, no CDN loading needed)
   try {
     vueFlowComposable = useVueFlowComposable({ id: vueFlowId })
