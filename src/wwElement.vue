@@ -1620,6 +1620,13 @@ const confirmSave = async () => {
 
   try {
     const currentEmpresaId = empresaId.value
+    console.log('[FLOW-BUILDER][SAVE 1/8] empresaId:', currentEmpresaId, '| type:', typeof currentEmpresaId)
+
+    // Log raw node configs before conversion
+    console.log('[FLOW-BUILDER][SAVE 2/8] Raw nodes configs:')
+    nodes.value.forEach(n => {
+      console.log(`  node=${n.id} type=${n.type} config=`, JSON.stringify(n.data?.config))
+    })
 
     // Generate payload in the format expected by the RPC
     const payload = generateFluxoPayload({
@@ -1630,6 +1637,8 @@ const confirmSave = async () => {
       ativo: false,
     })
 
+    console.log('[FLOW-BUILDER][SAVE 3/8] payload.fluxo:', JSON.stringify(payload.fluxo))
+
     // Add empresa_id to fluxo payload
     const fluxoPayload = {
       ...payload.fluxo,
@@ -1638,10 +1647,19 @@ const confirmSave = async () => {
 
     // If editing existing flow, add the id
     const fluxoId = loadedFluxoId.value || props.content?.fluxoId
+    console.log('[FLOW-BUILDER][SAVE 4/8] fluxoId:', fluxoId, '| type:', typeof fluxoId, '| loadedFluxoId:', loadedFluxoId.value, '| props.content.fluxoId:', props.content?.fluxoId)
 
     if (fluxoId) {
       fluxoPayload.id = fluxoId
     }
+
+    console.log('[FLOW-BUILDER][SAVE 5/8] fluxoPayload FINAL:', JSON.stringify(fluxoPayload))
+
+    // Log each acao config
+    console.log('[FLOW-BUILDER][SAVE 6/8] payload.acoes (' + payload.acoes.length + '):')
+    payload.acoes.forEach((a, i) => {
+      console.log(`  acao[${i}] temp_id=${a.temp_id} tipo=${a.tipo_acao} proxima=${a.proxima_acao || a.proxima_acao_true || '-'} config=`, JSON.stringify(a.config))
+    })
 
     // Check Supabase plugin availability
     if (!wwLib?.wwPlugins?.supabase?.instance) {
@@ -1656,6 +1674,8 @@ const confirmSave = async () => {
       })
       return
     }
+
+    console.log('[FLOW-BUILDER][SAVE 7/8] Chamando RPC salvar_fluxo_automacao...')
 
     // Call RPC function: salvar_fluxo_automacao
     const { data, error } = await wwLib.wwPlugins.supabase.instance.rpc(
@@ -1686,6 +1706,8 @@ const confirmSave = async () => {
     // Check application-level success from the RPC function
     if (data && data.success === false) {
       console.error('[FLOW-BUILDER] Erro SQL:', data.error)
+      console.error('[FLOW-BUILDER] DEBUG p_fluxo enviado:', JSON.stringify(fluxoPayload))
+      console.error('[FLOW-BUILDER] DEBUG p_acoes enviado:', JSON.stringify(payload.acoes))
       emit('trigger-event', {
         name: 'save',
         event: {
@@ -1697,12 +1719,7 @@ const confirmSave = async () => {
       return
     }
 
-    // Update loadedFluxoId if this was a new flow
-    if (!fluxoId && data?.fluxo?.id) {
-      setLoadedFluxoId(data.fluxo.id)
-    }
-
-    console.log('[FLOW-BUILDER] Fluxo salvo. ID:', data?.fluxo?.id, '| acoes:', data?.acoes?.length)
+    console.log('[FLOW-BUILDER][SAVE 8/8] Fluxo salvo. ID:', data?.fluxo?.id, '| acoes:', data?.acoes?.length)
 
     emit('trigger-event', {
       name: 'save',
