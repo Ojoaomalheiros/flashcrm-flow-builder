@@ -1646,8 +1646,15 @@ const confirmSave = async () => {
     }
 
     // If editing existing flow, add the id
-    const fluxoId = loadedFluxoId.value || props.content?.fluxoId
-    console.log('[FLOW-BUILDER][SAVE 4/8] fluxoId:', fluxoId, '| type:', typeof fluxoId, '| loadedFluxoId:', loadedFluxoId.value, '| props.content.fluxoId:', props.content?.fluxoId)
+    // Guard: only use fluxoId if it's a valid number (not array/object from wrong WeWeb binding)
+    const rawFluxoId = loadedFluxoId.value || props.content?.fluxoId
+    const fluxoId = (typeof rawFluxoId === 'number' && rawFluxoId > 0) ? rawFluxoId
+      : (typeof rawFluxoId === 'string' && /^\d+$/.test(rawFluxoId)) ? Number(rawFluxoId)
+      : null
+    console.log('[FLOW-BUILDER][SAVE 4/8] fluxoId:', fluxoId, '| raw:', rawFluxoId, '| type:', typeof rawFluxoId)
+    if (rawFluxoId && !fluxoId) {
+      console.warn('[FLOW-BUILDER] AVISO: props.content.fluxoId tem valor invalido (array/objeto). Verifique o binding no WeWeb. Salvando como novo fluxo.')
+    }
 
     if (fluxoId) {
       fluxoPayload.id = fluxoId
